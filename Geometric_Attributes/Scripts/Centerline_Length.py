@@ -48,6 +48,7 @@ def main(infc):
                 Graph.add_edge(pnts1,pnts2,weight=Length)
                 edges[ID] = Graph
         except Exception,e:
+            print e
             arcpy.AddError('%s'%(e))
 
     fields.extend(['id','SHAPE@'])
@@ -64,7 +65,7 @@ def main(infc):
                 ID = feature[6]
                 if ID not in Lengths:
                     G = edges[ID]
-                    Source = G.nodes()[0]
+                    Source = list(G.nodes)[0]
                     for n in range(2):
                         Length,Path = nx.single_source_dijkstra(G,Source,weight='weight')
                         Index = max(Length,key=Length.get)
@@ -96,6 +97,7 @@ def main(infc):
 
                 cursor.updateRow(feature)
             except Exception,e: #No Connection?
+                print e
                 arcpy.AddError('%s'%(e))
                 continue
 

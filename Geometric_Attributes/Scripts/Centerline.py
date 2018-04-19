@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
 import networkx as nx
-import os,arcpy
+import os,arcpy, sys
 
 def main(infc,Threshold,outfc):
 
@@ -44,14 +44,13 @@ def main(infc,Threshold,outfc):
 
     arcpy.AddMessage('Calculating Shortest Paths (2/3)')
     Threshold = int(Threshold)
-    
     for enum,FID in enumerate(edges):
         try:
-	    arcpy.AddMessage('%s - %s'%(enum,len(edges)))
             G = edges[FID]
+            
             G = max(nx.connected_component_subgraphs(G),key=len) #Largest Connected Graph
-
-            source = G.nodes()[0]
+            source = list(G.nodes)[0]
+    
             for n in range(2):
                 length,path = nx.single_source_dijkstra(G,source,weight='weight')          
                 Index = max(length,key=length.get)
@@ -61,12 +60,11 @@ def main(infc,Threshold,outfc):
             if Threshold > 0:
                 G2 = G.copy()
                 for n in range(int(Threshold)):      
-                    degree = G2.degree()
-                    removeNodes  = [k for k,v in degree.iteritems() if v == 1]
+                    removeNodes  = [k for (k,v) in G2.degree() if v == 1]
                     G2.remove_nodes_from(removeNodes)
-                endPoints = [k for k,v in degree.iteritems() if v == 1]   
-                data[FID]= set(G2.nodes())
-                G.remove_nodes_from(G2.nodes())
+                endPoints = [k for (k,v) in G2.degree() if v == 1]   
+                data[FID]= set(list(G2.nodes))
+                G.remove_nodes_from(list(G2.nodes))
                 for source in endPoints:
                     length,path = nx.single_source_dijkstra(G,source,weight='weight')
                     Index = max(length,key=length.get)
@@ -123,9 +121,9 @@ if __name__ == "__main__":
 
     #Definition of inputs and outputs
     #==================================
-    inFC=arcpy.GetParameterAsText(0)
+    inFC= arcpy.GetParameterAsText(0)
     Threshold=arcpy.GetParameterAsText(1)
-    Output=arcpy.GetParameterAsText(2)
+    Output= arcpy.GetParameterAsText(2)
 
     main(inFC,Threshold,Output)
 
