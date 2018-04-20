@@ -18,26 +18,39 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
-import os
+import os,sys,subprocess,pip
 
-try:
-    pip_install = True
-    import pip
-except Exception:
-    dirname = os.path.dirname(os.path.realpath('__file__'))
-    fname = os.path.join(dirname,'get-pip.py')
-    os.system(fname)
-    import pip
+dirname = os.path.split(os.path.dirname(sys.executable))
+folder = dirname[1].replace('x64','')
 
-def main():
+python_exe = os.path.join(dirname[0],folder,'python.exe')
+
+modules = ['pip','scipy','pandas','networkx==1.8','xlsxwriter']
+
+for module in modules:
     try:
-        pip.main( ["install","networkx"] )
-        pip.main( ["install","scipy"] )            
-        print '\n Finished'
+        subprocess.check_call([python_exe,'-m', 'pip', 'install','--upgrade', module])
+    except Exception,e:
+        print e
+        continue
+     
+def main(python_exe):
+
+    try:
+        python_exe = sys.executable.replace('w','')
+        for module in modules:
+            try:
+                subprocess.check_call([python_exe,'-m', 'pip', 'install','--upgrade', module])
+            except Exception,e:
+                print e
+                continue
+
+        print 'Finished'
     except Exception,e:
         print e
         
 if __name__ == "__main__":
 
-    main()
+    
+    main(sys.executable)
 
