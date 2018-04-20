@@ -18,19 +18,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
 
 #Algorithm body
-import arcpy
+import arcpy,sys
 import networkx as nx
 
 def main(infc):
 
-    curfields = curfields = [f.name for f in arcpy.ListFields(infc)]
+    curfields = [f.name for f in arcpy.ListFields(infc)]
 
-    fields = ["Distance","RDistance","DCoordx","DCoordy","RDCoordx","RDCoordy"]
+    fields = ['Distance','RDistance','DCoordx','DCoordy','RDCoordx','RDCoordy']
+
     for field in fields:
-        if field not in curfields:
-            arcpy.AddField_management(infc,field,"DOUBLE")
-
-
+       if field not in curfields:
+               arcpy.AddField_management(infc,field,"DOUBLE")             
+        
     edges = {}
     arcpy.AddMessage('Calculating Edges (1/2)')
 
@@ -48,24 +48,26 @@ def main(infc):
                 Graph.add_edge(pnts1,pnts2,weight=Length)
                 edges[ID] = Graph
         except Exception,e:
-            print e
             arcpy.AddError('%s'%(e))
 
     fields.extend(['id','SHAPE@'])
     Lengths = {}
+
     arcpy.AddMessage('Updating Features (2/2)')
+    
     with arcpy.da.UpdateCursor(infc,fields) as cursor:
         for feature in cursor:
             try:
                 start = feature[-1].firstPoint
+                
                 end = feature[-1].lastPoint
                 startx,starty =(start.X,start.Y)
                 endx,endy =(end.X,end.Y)
-        
+                
                 ID = feature[6]
                 if ID not in Lengths:
                     G = edges[ID]
-                    Source = list(G.nodes)[0]
+                    Source = G.nodes()[0]
                     for n in range(2):
                         Length,Path = nx.single_source_dijkstra(G,Source,weight='weight')
                         Index = max(Length,key=Length.get)
@@ -74,7 +76,7 @@ def main(infc):
                     Length,Path = nx.single_source_dijkstra(G,Source,weight='weight')
                     G.clear()
                     Lengths[ID].append(Length)
-                    
+                  
                 L = [Lengths[ID][0][(endx,endy)],Lengths[ID][0][(startx,starty)]]
                 if L[0] > L[1]:
                     sx = startx
@@ -97,7 +99,6 @@ def main(infc):
 
                 cursor.updateRow(feature)
             except Exception,e: #No Connection?
-                print e
                 arcpy.AddError('%s'%(e))
                 continue
 

@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
 import networkx as nx
-import os,arcpy, sys
+import os,arcpy
 
 def main(infc,Threshold,outfc):
 
@@ -29,7 +29,7 @@ def main(infc,Threshold,outfc):
         try:
             start = feature[0].firstPoint
             end = feature[0].lastPoint
-            pnts1,pnts2 = [(round(start.X,-1),round(start.Y,-1)),(round(end.X,-1),round(end.Y,-1))]
+            pnts1,pnts2 = [(start.X,start.Y),(end.X,end.Y)]
             Length = feature[0].length
             ID = feature[1]
             if ID in edges:
@@ -44,13 +44,13 @@ def main(infc,Threshold,outfc):
 
     arcpy.AddMessage('Calculating Shortest Paths (2/3)')
     Threshold = int(Threshold)
-    for enum,FID in enumerate(edges):
+    
+    for FID in edges:
         try:
             G = edges[FID]
-            
             G = max(nx.connected_component_subgraphs(G),key=len) #Largest Connected Graph
-            source = list(G.nodes)[0]
-    
+
+            source = G.nodes()[0]
             for n in range(2):
                 length,path = nx.single_source_dijkstra(G,source,weight='weight')          
                 Index = max(length,key=length.get)
@@ -60,11 +60,12 @@ def main(infc,Threshold,outfc):
             if Threshold > 0:
                 G2 = G.copy()
                 for n in range(int(Threshold)):      
-                    removeNodes  = [k for (k,v) in G2.degree() if v == 1]
+                    degree = G2.degree()
+                    removeNodes  = [k for k,v in degree.iteritems() if v == 1]
                     G2.remove_nodes_from(removeNodes)
-                endPoints = [k for (k,v) in G2.degree() if v == 1]   
-                data[FID]= set(list(G2.nodes))
-                G.remove_nodes_from(list(G2.nodes))
+                endPoints = [k for k,v in degree.iteritems() if v == 1]   
+                data[FID]= set(G2.nodes())
+                G.remove_nodes_from(G2.nodes())
                 for source in endPoints:
                     length,path = nx.single_source_dijkstra(G,source,weight='weight')
                     Index = max(length,key=length.get)
@@ -90,11 +91,17 @@ def main(infc,Threshold,outfc):
         
     
         curfields = [field.name for field in arcpy.ListFields(outfc)]
-        if 'id' not in curfields:
-            try:
-                arcpy.AddField_management(outfc,'id',"LONG")
-            except:
-                pass
+
+    	fields = ['id','Distance','RDistance','DCoordx','DCoordy','RDCoordx','RDCoordy','Deviation','Width', 'AlongDist']
+
+    	for field in fields:
+            if field not in curfields:
+		try:
+                    arcpy.AddField_management(outfc,field,"DOUBLE")
+		except Exception,e:
+		    arcpy.AddError('%s'%(e))
+                    pass
+                
 
         arcpy.AddMessage('Creating Centerline Segments (3/3)')
         for feature in arcpy.da.SearchCursor(infc,['SHAPE@','id']):
@@ -103,16 +110,15 @@ def main(infc,Threshold,outfc):
                 if FID in data:
                     start = feature[0].firstPoint
                     end = feature[0].lastPoint
-                    pnts = [(round(start.X,-1),round(start.Y,-1)),(round(end.X,-1),round(end.Y,-1))]
+                    pnts = [(start.X,start.Y),(end.X,end.Y)]
                     pnts1,pnts2 = pnts
                 
                     if pnts1 in data[FID] and pnts2 in data[FID]:
                         update_data = [FID,pnts]
-			
                         cursor.insertRow(update_data)
             except Exception,e:
                 arcpy.AddError('%s'%(e))
-                break
+                continue 
 
 
 if __name__ == "__main__":        
@@ -121,9 +127,9 @@ if __name__ == "__main__":
 
     #Definition of inputs and outputs
     #==================================
-    inFC= arcpy.GetParameterAsText(0)
+    inFC=arcpy.GetParameterAsText(0)
     Threshold=arcpy.GetParameterAsText(1)
-    Output= arcpy.GetParameterAsText(2)
+    Output=arcpy.GetParameterAsText(2)
 
     main(inFC,Threshold,Output)
 

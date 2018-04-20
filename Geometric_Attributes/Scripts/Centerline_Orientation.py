@@ -108,7 +108,10 @@ def main(infc,Depo_Dir,Calc_AD):
                 except Exception,e:
                     arcpy.AddError('%s'%(e))
                     continue
-    arcpy.DeleteField_management(infc,['NEAR_DIST','NEAR_FID'])
+    try:
+        arcpy.DeleteField_management(infc,['NEAR_DIST','NEAR_FID'])
+    except Exception, e:
+        arcpy.AddMessage('%s'%(e))
     
 if __name__ == "__main__":        
 
