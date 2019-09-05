@@ -13,7 +13,7 @@ email=bjorn.nyberg@uib.no
 about=A set of tools for calculating the centerline, width, deviation, shape and adjacency of polygons.
 
 tracker=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/issues
-repository=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/tree/master/Geometric-Analysis_QGIS/Scripts
+repository=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/tree/master/geometric_attributes/algorithms
 # End of mandatory metadata
 
 # Recommended items:
