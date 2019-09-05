@@ -33,12 +33,12 @@ __revision__ = '$Format:%H$'
 import os
 from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
-from .algorithms.Adjacency import Connected
-from .algorithms.Centerlines import Centerlines
-from .algorithms.DCenterlines import DCenterlines
-from .algorithms.GA import GA
-from .algorithms.Overlap import Overlap
-from .algorithms.Shape_Analysis import Shape
+from .Adjacency import Connected
+from .Centerlines import Centerlines
+from .DCenterlines import DCenterlines
+from .GA import GA
+from .Overlap import Overlap
+from .Shape_Analysis import Shape
 
 
 class GeometricAttributesProvider(QgsProcessingProvider):
