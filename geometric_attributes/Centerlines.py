@@ -248,7 +248,8 @@ class Centerlines(QgsProcessingAlgorithm):
                     startx,starty = endx,endy
                     
             except Exception as e:
-                feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+                continue
+                #feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
 
         feedback.pushInfo(QCoreApplication.translate('Update','Calculating %s Centerlines' %(len(edges))))
 

@@ -172,7 +172,7 @@ class Connected(QgsProcessingAlgorithm):
                                         length = 0.0
                                     data[Class] += length
                             except Exception as e:# No length? possible collapsed polygon/point
-                                feedback.pushInfo(QCoreApplication.translate('Update','%s'%(e)))
+                                #feedback.pushInfo(QCoreApplication.translate('Update','%s'%(e)))
                                 continue
 
                 G.add_edge(feature.id(),feature.id())
@@ -196,7 +196,7 @@ class Connected(QgsProcessingAlgorithm):
                 update[feature.id()] = rows
                 
             except Exception as e:
-                feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+                #feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 continue
             
         subGraphs = nx.connected_component_subgraphs(G)

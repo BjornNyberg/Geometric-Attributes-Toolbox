@@ -171,7 +171,7 @@ class GA(QgsProcessingAlgorithm):
                     counts[ID] = 1
                 
             except Exception as e:
-                feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+                #feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 continue ##Possible Collapsed Polyline?
         
         del values,values2

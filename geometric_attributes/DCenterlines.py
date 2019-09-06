@@ -227,7 +227,7 @@ class DCenterlines(QgsProcessingAlgorithm):
                 writer.addFeature(fet)
     
             except Exception as e:
-                feedback.pushInfo(QCoreApplication.translate('Update','%s'%(e)))
+                #feedback.pushInfo(QCoreApplication.translate('Update','%s'%(e)))
                 continue
 
         return {self.Output:dest_id}
