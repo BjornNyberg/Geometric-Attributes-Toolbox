@@ -28,7 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 ***************************************************************************
 """
     
-import os, sys, math
+import os, sys, math, shutil, string, random
 import processing as st
 import networkx as nx
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
@@ -93,6 +93,8 @@ class Centerlines(QgsProcessingAlgorithm):
         
         layer = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         Method = parameters[self.Method]
+
+        context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
         
         def densify(polyline, interval): #based on DensifyGeometriesInterval.py
             output = []
@@ -143,11 +145,16 @@ class Centerlines(QgsProcessingAlgorithm):
                                                fields, QgsWkbTypes.LineString, layer.sourceCrs())
                                        
         if dest_id.endswith('.shp'):
-            dirname = dest_id[:-4]
+            folder = ['tempCenterlines',''.join(random.sample(string.ascii_letters,10))] #create temp folder
+            
+            dirname = os.path.join(os.path.dirname(dest_id),*folder)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
         else:
-            dirname = dest_id
-        infc = r'%s%s'%(dirname,'P.shp')
-        layer2 = QgsVectorLayer(infc)
+            feedback.reportError(QCoreApplication.translate('Error','Please save the output as a shapefile'))
+            return {}
+
+        infc = os.path.join(dirname,'P.shp')
         Densify_Interval = parameters[self.Densify]
         
         Precision=5
@@ -194,7 +201,7 @@ class Centerlines(QgsProcessingAlgorithm):
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Voronoi Polygons'))
         del writer
         
-        tempVP = r'%s%s'%(dirname,'VL.shp') #.shp requirement of SAGA
+        tempVP = os.path.join(dirname,'VL.shp') #.shp requirement of SAGA
 
         param = {'POINTS':infc,'POLYGONS':tempVP,'FRAME':10.0}  
         Voronoi = st.run("saga:thiessenpolygons",param,context=context,feedback=feedback)   
@@ -206,11 +213,17 @@ class Centerlines(QgsProcessingAlgorithm):
 
         param = {'INPUT':Voronoi['POLYGONS'],'OUTPUT':'memory:'}
         lines = st.run("qgis:polygonstolines",param,context=context,feedback=feedback)
+
+        try: #delete temporary files
+            shutil.rmtree(os.path.dirname(dirname),ignore_errors=True)
+        except Exception as e:
+            pass
+        
         param = {'INPUT':lines['OUTPUT'],'OUTPUT':'memory:'}
         exploded = st.run("native:explodelines",param,context=context,feedback=feedback)
         param = {'INPUT':exploded['OUTPUT'],'PREDICATE':6,'INTERSECT':layer,'METHOD':0}
         st.run("native:selectbylocation",param,context=context,feedback=feedback)              
-        total = 100.0/exploded['OUTPUT'].featureCount()
+        total = 100.0/exploded['OUTPUT'].selectedFeatureCount()
         
         for enum,feature in enumerate(exploded['OUTPUT'].selectedFeatures()):
             try:
@@ -236,12 +249,6 @@ class Centerlines(QgsProcessingAlgorithm):
                     
             except Exception as e:
                 feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
-                
-            try:
-                os.remove(tempVP)
-                os.remove(P)
-            except Exception:
-                pass
 
         feedback.pushInfo(QCoreApplication.translate('Update','Calculating %s Centerlines' %(len(edges))))
 
@@ -416,5 +423,6 @@ class Centerlines(QgsProcessingAlgorithm):
 
             
         del writer2,edges
-        
+
         return {self.Output:dest_id}
+

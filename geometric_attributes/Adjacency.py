@@ -85,6 +85,8 @@ class Connected(QgsProcessingAlgorithm):
         layer = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         features = {f.id():f for f in layer.getFeatures()}
         selected = [f.id() for f in layer.selectedFeatures()]
+
+        context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
         
         if len(selected) == 0:
             selected = list(features.keys())

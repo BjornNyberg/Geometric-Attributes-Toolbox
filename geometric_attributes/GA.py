@@ -101,7 +101,9 @@ class GA(QgsProcessingAlgorithm):
         samples = parameters[self.Samples]
         distance = parameters[self.Distance]
         FC = parameters[self.FC]
-        
+
+        context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
+
         Precision=5
         if FC: 
             field_names = ['Distance','SP_Dist','Width','Deviation','DWidthL','DWidthR']

@@ -79,6 +79,8 @@ class Overlap(QgsProcessingAlgorithm):
         layer = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         distance = parameters[self.Tolerance]
         
+        context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
+        
         if distance <= 0.0:
             feedback.reportError(QCoreApplication.translate('Error','Tolerance must be greater than 0'))
             return {}

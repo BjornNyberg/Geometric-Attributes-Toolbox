@@ -80,7 +80,9 @@ class DCenterlines(QgsProcessingAlgorithm):
         
         layer = self.parameterAsVectorLayer(parameters, self.Centerline, context)
         layer2 = self.parameterAsVectorLayer(parameters, self.Direction, context) 
-        
+
+        context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
+
         index = QgsSpatialIndex(layer2.getFeatures())
         
         fet = QgsFeature()

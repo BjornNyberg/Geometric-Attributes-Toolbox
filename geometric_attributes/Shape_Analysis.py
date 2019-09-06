@@ -81,6 +81,8 @@ class Shape(QgsProcessingAlgorithm):
         layer = self.parameterAsVectorLayer(parameters, self.Width, context)
         layer2 = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         Directional = parameters[self.Directional]
+
+        context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
         
         '''Input thresholds - for more detail refer to
         Nyberg, B., Buckley, S.J., Howell, J.A., Nanson, R.A. (2015). Geometric attribute and shape characterization of modern
