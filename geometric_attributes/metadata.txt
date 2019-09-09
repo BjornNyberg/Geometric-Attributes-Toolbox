@@ -23,7 +23,7 @@ hasProcessingProvider=yes
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=centerline, width, geometric attributes, shape, topology, deviation, clusters, adjacency
+tags=centerline, width, geometric attributes, shape, topology, deviation, clusters, adjacency, geometry
 
 homepage=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox
 category=Vector
