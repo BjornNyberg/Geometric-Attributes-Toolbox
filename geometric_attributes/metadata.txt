@@ -10,7 +10,7 @@ version=0.1
 author=Bjorn Nyberg
 email=bjorn.nyberg@uib.no
 
-about=A set of tools for calculating the centerline, width, deviation, shape and adjacency of polygons.
+about=A set of tools for calculating the centerline, width, deviation, shape and adjacency of polygons. Citation - Nyberg, B., Buckley, S.J., Howell, J.A., Nanson, R.A., (2015). Geometric attribute and shape characterization of modern depositional elements: A quantitative GIS method for empirical analysis, Computers & Geosciences, Vo. 82, 2015, p. 191-204.
 
 tracker=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/issues
 repository=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/tree/master/geometric_attributes
