@@ -104,6 +104,9 @@ class GA(QgsProcessingAlgorithm):
 
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
 
+        if layer.sourceCrs() != layer2.sourceCrs():
+            feedback.reportError(QCoreApplication.translate('Error','WARNING: Centerline and Polygon input do not have the same projection'))
+
         Precision=5
         if FC: 
             field_names = ['Distance','SP_Dist','Width','Deviation','DWidthL','DWidthR']
@@ -171,14 +174,14 @@ class GA(QgsProcessingAlgorithm):
                     counts[ID] = 1
                 
             except Exception as e:
-                #feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+                feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 continue ##Possible Collapsed Polyline?
         
         del values,values2
         total = 100.0/float(total)
         ID = None 
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Width Measurements'))
-
+        report = True
         for enum,feature in enumerate(layer.getFeatures()):
             try:
                 if total != -1:
@@ -238,6 +241,7 @@ class GA(QgsProcessingAlgorithm):
                         SP = shortestPath
 
                 else:
+                    
                     m = ((starty - endy)/(startx - endx)) #Slope
                     inter = feats[curID]
                     Distance = inter.geometry().boundingBox().width()/2
@@ -255,14 +259,16 @@ class GA(QgsProcessingAlgorithm):
                         x2,y2 = (midx - Distance*(c),midy - Distance*(s))
                         
                     geom = QgsGeometry.fromPolylineXY([QgsPointXY(x1,y1),QgsPointXY(midx,midy),QgsPointXY(x2,y2)])
+                
                     geom = geom.intersection(inter.geometry())
-                    
+
                     if geom.isMultipart():
                         polyline = geom.asMultiPolyline()
                         if len(polyline) == 0:
                             startx,starty = midx,midy
                             midx,midy = endx,endy
                             continue
+                        
                         for line in polyline:
                             if len(line)==3:
                                 t=1
@@ -278,10 +284,12 @@ class GA(QgsProcessingAlgorithm):
                         except Exception as e:
                             startx,starty = midx,midy
                             midx,midy = endx,endy
+                            if report:
+                                report = False
+                                feedback.reportError(QCoreApplication.translate('Error','Width measurement along centerline does not intersect with input polygons. Check 1. ID fields corresponds between centerline and polygons 2. Geometry of centerline and polygon inputs (i.e. use "Fix Geometries" tool')) 
                             continue
                         geom1 = QgsGeometry.fromPolylineXY([QgsPointXY(line[0][0],line[0][1]),QgsPointXY(line[1][0],line[1][1])])
                         geom2 = QgsGeometry.fromPolylineXY([QgsPointXY(line[1][0],line[1][1]),QgsPointXY(line[2][0],line[2][1])])		
-                    
                     Widths = [geom1.length(),geom2.length()]
                     
                     
@@ -334,7 +342,7 @@ class GA(QgsProcessingAlgorithm):
 
                 startx,starty = midx,midy
                 midx,midy = endx,endy
-                
+
                 fet.setGeometry(geom)   
                 fet.setAttributes(rows)
                 writer.addFeature(fet)
@@ -345,6 +353,7 @@ class GA(QgsProcessingAlgorithm):
                     Counter = 0
 
             except Exception as e:
+                #feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 startx,starty = midx,midy
                 midx,midy = endx,endy
                 continue

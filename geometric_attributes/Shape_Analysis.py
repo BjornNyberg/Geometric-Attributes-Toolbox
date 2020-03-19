@@ -202,6 +202,7 @@ class Shape(QgsProcessingAlgorithm):
                 data[ID] = (round(Distance,Precision),round((Distance/SPv),Precision),round(Width,Precision),round(xMax,Precision),Class)
                 
             except Exception as e:
+                feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 continue
 
         total = 100.0/float(total)

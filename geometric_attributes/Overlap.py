@@ -145,6 +145,7 @@ class Overlap(QgsProcessingAlgorithm):
                 features[feature.id()]=geom
                 
             except Exception as e:
+                feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 continue
 
         return {self.Output:dest_id}

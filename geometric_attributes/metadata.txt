@@ -6,7 +6,7 @@
 name=Geometric Attributes
 qgisMinimumVersion=3.4
 description=Analyze geometric attributes of a feature along its centerline
-version=0.1
+version=0.2
 author=Bjorn Nyberg
 email=bjorn.nyberg@uib.no
 
@@ -23,13 +23,13 @@ hasProcessingProvider=yes
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=centerline, width, geometric attributes, shape, topology, deviation, clusters, adjacency, geometry
+tags=centerline, width, geometric attributes, shape, topology, deviation, clusters, adjacency
 
 homepage=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox
 category=Vector
 icon=icon.png
 # experimental flag
-experimental=True
+experimental=False
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False

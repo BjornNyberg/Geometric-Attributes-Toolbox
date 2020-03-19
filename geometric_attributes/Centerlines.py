@@ -32,7 +32,7 @@ import os, sys, math, shutil, string, random
 import processing as st
 import networkx as nx
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.core import (QgsVectorLayer, QgsSpatialIndex, QgsField,QgsVectorFileWriter, QgsProcessingParameterBoolean, QgsFeature, QgsPointXY, QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessing,QgsWkbTypes, QgsGeometry, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSource, QgsProcessingParameterFeatureSink,QgsFeatureSink,QgsFeatureRequest,QgsFields,QgsProperty)
+from qgis.core import (QgsVectorLayer, QgsSpatialIndex,QgsProcessingParameterEnum, QgsField,QgsVectorFileWriter, QgsProcessingParameterBoolean, QgsFeature, QgsPointXY, QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessing,QgsWkbTypes, QgsGeometry, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSource, QgsProcessingParameterFeatureSink,QgsFeatureSink,QgsFeatureRequest,QgsFields,QgsProperty)
 from itertools import combinations,chain
 from math import sqrt
 
@@ -41,6 +41,7 @@ class Centerlines(QgsProcessingAlgorithm):
     Polygons='Polygons'
     Method='Method'
     Densify='Line Spacing'
+    T = 'Trim Iterations'
     Output='Centerlines'
     
     def __init__(self):
@@ -59,7 +60,7 @@ class Centerlines(QgsProcessingAlgorithm):
         return self.tr("Algorithms")
     
     def shortHelpString(self):
-        return self.tr('Calculate centerlines of each polygon. Available methods: 1. Centerlines, 2. All, 3. Circles, 4. A number (e.g., 5)')
+        return self.tr('Calculate centerlines of each polygon. Available methods: 1. Centerlines, 2. All, 3. Circles or 4. a number (e.g., 50) indicating number of iterations to trim dangles')
 
     def groupId(self):
         return "Algorithms"
@@ -75,9 +76,13 @@ class Centerlines(QgsProcessingAlgorithm):
             self.Polygons,
             self.tr("Polygons"),
             [QgsProcessing.TypeVectorPolygon]))
-        self.addParameter(QgsProcessingParameterString(
-            self.Method,
-            self.tr("Method"),'Centerlines'))
+        self.addParameter(QgsProcessingParameterEnum(self.Method,
+                                self.tr('Centerlines'), options=[self.tr("Centerlines"),self.tr("All"),self.tr("Circles")],defaultValue=0))
+        self.addParameter(QgsProcessingParameterNumber(
+            self.T,
+            self.tr("Trim Iterations"),
+            QgsProcessingParameterNumber.Double,
+            0.0))
         self.addParameter(QgsProcessingParameterNumber(
             self.Densify,
             self.tr("Line Spacing"),
@@ -92,7 +97,10 @@ class Centerlines(QgsProcessingAlgorithm):
     def processAlgorithm(self, parameters, context, feedback):
         
         layer = self.parameterAsVectorLayer(parameters, self.Polygons, context)
-        Method = parameters[self.Method]
+        aMethod = parameters[self.Method]
+        Threshold = parameters[self.T]
+        mDict = {0:"Centerlines",1:"All",2:"Circles"}
+        Method = mDict[aMethod]
 
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
         
@@ -144,17 +152,12 @@ class Centerlines(QgsProcessingAlgorithm):
         (writer2, dest_id) = self.parameterAsSink(parameters, self.Output, context,
                                                fields, QgsWkbTypes.LineString, layer.sourceCrs())
                                        
-        if dest_id.endswith('.shp'):
-            folder = ['tempCenterlines',''.join(random.sample(string.ascii_letters,10))] #create temp folder
-            
-            dirname = os.path.join(os.path.dirname(dest_id),*folder)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-        else:
-            feedback.reportError(QCoreApplication.translate('Error','Please save the output as a shapefile'))
-            return {}
-
-        infc = os.path.join(dirname,'P.shp')
+        outDir = os.path.join(os.environ['TMP'],'GA')
+        if not os.path.exists(outDir):
+            os.mkdir(outDir)
+                
+        fname = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
+        infc = os.path.join(outDir,'%s.shp'%(fname))
         Densify_Interval = parameters[self.Densify]
         
         Precision=5
@@ -201,7 +204,7 @@ class Centerlines(QgsProcessingAlgorithm):
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Voronoi Polygons'))
         del writer
         
-        tempVP = os.path.join(dirname,'VL.shp') #.shp requirement of SAGA
+        tempVP = os.path.join(outDir,'VL.shp') #.shp requirement of SAGA
 
         param = {'POINTS':infc,'POLYGONS':tempVP,'FRAME':10.0}  
         Voronoi = st.run("saga:thiessenpolygons",param,context=context,feedback=feedback)   
@@ -248,8 +251,7 @@ class Centerlines(QgsProcessingAlgorithm):
                     startx,starty = endx,endy
                     
             except Exception as e:
-                continue
-                #feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+                feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
 
         feedback.pushInfo(QCoreApplication.translate('Update','Calculating %s Centerlines' %(len(edges))))
 
@@ -261,15 +263,17 @@ class Centerlines(QgsProcessingAlgorithm):
                 G = edges[FID]
                 G=max(nx.connected_component_subgraphs(G), key=len) #Largest Connected Graph
                 
-                if Method.isdigit():
-                    Threshold = int(Method)
+                if Threshold > 0:
+                    Threshold = int(Threshold)
                     G2 = G.copy()
                     G3 = G.copy()
-                    for n in range(int(Threshold)):      
-                        removeNodes  = [k for k,v in G2.degree() if v == 1]
+                    for n in range(int(Threshold)):
+                        degree = G2.degree()
+                        removeNodes  = [k for k,v in degree if v == 1]
                         G2.remove_nodes_from(removeNodes)
-  
-                    endPoints = [k for k,v in G2.degree() if v == 1] 
+
+                    degree = G2.degree()
+                    endPoints = [k for k,v in degree if v == 1] 
         
                     G3.remove_edges_from(G2.edges)
                     
@@ -320,7 +324,8 @@ class Centerlines(QgsProcessingAlgorithm):
                     G2 = G.copy()
                     while len(G2) != curLen:
                         curLen = len(G2)
-                        removeNodes = [k for k,v in G2.degree() if v == 1]
+                        degree = G2.degree()
+                        removeNodes = [k for k,v in degree if v == 1]
                         G2.remove_nodes_from(removeNodes)
               
                     source = list(G.nodes())[0]
@@ -372,7 +377,7 @@ class Centerlines(QgsProcessingAlgorithm):
                     while len(G2) != curLen:
                         curLen = len(G2)
                         degree = G2.degree()
-                        removeNodes = [k for k,v in G2.degree() if v == 1]
+                        removeNodes = [k for k,v in degree if v == 1]
                         G2.remove_nodes_from(removeNodes)
 
                     for p in G2.edges:
