@@ -30,7 +30,7 @@ changelog= Version 0.3 - 09/04/2020
 # Tags are comma separated with spaces allowed
 tags=centerline,width,geometric attributes,shape,topology,deviation,clusters,adjacency,sinuosity,distance,merge
 
-homepage=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox
+homepage=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki
 category=Vector
 icon=icon.png
 # experimental flag

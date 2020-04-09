@@ -41,7 +41,7 @@ class mergeLines(QgsProcessingAlgorithm):
         return self.tr("Algorithms")
 
     def shortHelpString(self):
-        return self.tr('''Merge singlepart linestring geometries into a single oriented polyline if two endpoints are identical. The tool will split lines at intersections that contain more than two endpoints and calculate the statistics of each float attribute in the new line output. \n For additional topological editing visit the NetworkGT plugin.''')
+        return self.tr('''Merge singlepart linestring geometries into a single oriented polyline if two endpoints are identical. The tool will split lines at intersections that contain more than two endpoints and calculate the statistics of each float attribute in the new line output.\n **Note** - The tool will simplify the line geometry between start and endpoint - Use 'Explode Lines Tool' to maintain geometries. \n For additional topological editing visit the NetworkGT plugin.''')
 
     def groupId(self):
         return "Algorithms"
@@ -123,6 +123,8 @@ class mergeLines(QgsProcessingAlgorithm):
         total = layer.featureCount()
         total = 100.0/total
 
+        fet = QgsFeature()
+
         features = layer.getFeatures(QgsFeatureRequest())
         for enum,feature in enumerate(features):
             try:
@@ -141,19 +143,13 @@ class mergeLines(QgsProcessingAlgorithm):
 
                 vertices = [Graph[branch[0]],Graph[branch[1]]]
 
-                if 2 in vertices:
-                    G.add_edge(branch[0],branch[1])
-                    attrs[(branch[0],branch[1])] = rows #Keep attributes of feature
-                    continue
+                G.add_edge(branch[0],branch[1]) #TO DO explode lines
+                attrs[(branch[0],branch[1])] = rows #Keep attributes of feature
 
-                points = []
-                for pnt in geom:
-                    x,y = (math.ceil(pnt[0]*P)/P,math.ceil(pnt[1]*P)/P)
-                    points.append(QgsPointXY(x,y))
-                    geomFeat = QgsGeometry.fromPolylineXY(points)
-                fet.setGeometry(geomFeat)
-                fet.setAttributes(rows)
-                writer.addFeature(fet,QgsFeatureSink.FastInsert)
+                if 2 not in vertices:
+                    fet.setGeometry(feature.geometry())
+                    fet.setAttributes(rows)
+                    writer.addFeature(fet,QgsFeatureSink.FastInsert)
 
             except Exception as e:
                 feedback.pushInfo(QCoreApplication.translate('Create Lines','%s'%(e)))
@@ -166,13 +162,17 @@ class mergeLines(QgsProcessingAlgorithm):
             total = 100.0/len(G)
 
         feedback.pushInfo(QCoreApplication.translate('Create Lines','Merging V nodes'))
-        for enum,node in enumerate(G.nodes()): #TO DO split polyline at Y node intersections
+        for enum,node in enumerate(G.nodes()):
             feedback.setProgress(int(enum*total))
             start = node
             enum +=1
             points = []
+            if G.degree(node) != 2:
+                continue
             while start:
                 c = False
+                if G.degree(start) > 2:
+                    break
                 edges = G.edges(start)
                 for edge in edges:
                     if edge[0] == start:
@@ -188,22 +188,18 @@ class mergeLines(QgsProcessingAlgorithm):
                         if not points:
                             end = curEnd
                             points = [QgsPointXY(curEnd[0],curEnd[1]),QgsPointXY(start[0],start[1])]
-                            if G.degree(curEnd) > 2:
-                                break
                             continue
+
                         points.append(QgsPointXY(curEnd[0],curEnd[1]))
+
                         start = curEnd
-
-                        if G.degree(curEnd) > 2:
-                            c = False
-                            break
-                        else:
-                            c = True
-
+                        c = True
                 if not c:
                     start = None
             while end:
                 c = False
+                if G.degree(end) > 2:
+                    break
                 edges = G.edges(end)
                 for edge in edges:
                     if edge[0] == end:
@@ -219,16 +215,13 @@ class mergeLines(QgsProcessingAlgorithm):
                         data.extend([line,line2])
                         if not points:
                             points = [QgsPointXY(curStart[0],curStart[1]),QgsPointXY(end[0],end[1])]
-                            if G.degree(curStart) > 2:
-                                c = False
-                                break
                             continue
                         end = curStart
                         points.insert(0,QgsPointXY(curStart[0],curStart[1]))
-                        if G.degree(curStart) > 2:
-                            c = False
-                            break
+
+                        start = curEnd
                         c = True
+
                 if not c:
                     end = None
             if points:
@@ -239,9 +232,7 @@ class mergeLines(QgsProcessingAlgorithm):
         if len(polyline) > 0:
             total = 100.0/len(polyline)
 
-        fet = QgsFeature()
-
-        for enum,part in enumerate(polyline):
+        for enum,part in enumerate(polyline): #TO DO - Explode Lines while maintaing attributes for original geometry
 
             if total != -1:
                 feedback.setProgress(int(enum*total))
@@ -251,7 +242,7 @@ class mergeLines(QgsProcessingAlgorithm):
                     geom = outGeom.asPolyline()
                     outRows = []
                     rowData = deepcopy(dataOut)
-    
+
                     startP = None
                     try:
                         for pnt in geom:
