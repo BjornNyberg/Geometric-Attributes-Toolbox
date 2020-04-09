@@ -36,19 +36,19 @@ class Overlap(QgsProcessingAlgorithm):
         super().__init__()
 
     def name(self):
-        return "Topologically Consistent Polygons"
+        return "Remove Overlap"
 
     def tr(self, text):
-        return QCoreApplication.translate("Topologically Consistent Polygons", text)
+        return QCoreApplication.translate("Remove Overlap", text)
 
     def displayName(self):
-        return self.tr("Topologically Consistent Polygons")
+        return self.tr("Remove Overlap")
 
     def group(self):
         return self.tr("Algorithms")
 
     def shortHelpString(self):
-        return self.tr("Create topologically consistent polygons")
+        return self.tr("Create a topologically consistent feature class by remvoing the overlapping area of adjacent polygons within a given tolerance distance.")
 
     def groupId(self):
         return "Algorithms"
@@ -68,7 +68,7 @@ class Overlap(QgsProcessingAlgorithm):
             self.Tolerance,
             self.tr("Tolerance"),
             QgsProcessingParameterNumber.Double,
-            0.1))
+            0.1, minValue=0.000001))
         self.addParameter(QgsProcessingParameterFeatureSink(
             self.Output,
             self.tr("Output"),
@@ -80,10 +80,6 @@ class Overlap(QgsProcessingAlgorithm):
         distance = parameters[self.Tolerance]
 
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
-
-        if distance <= 0.0:
-            feedback.reportError(QCoreApplication.translate('Error','Tolerance must be greater than 0'))
-            return {}
 
         fet = QgsFeature()
         fields = QgsFields()
