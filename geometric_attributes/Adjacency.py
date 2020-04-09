@@ -1,7 +1,7 @@
 #==================================
-#Author Bjorn Burr Nyberg 
+#Author Bjorn Burr Nyberg
 #University of Bergen
-#Contact bjorn.nyberg@uni.no
+#Contact bjorn.nyberg@uib.no
 #Copyright 2014
 #==================================
 
@@ -19,7 +19,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
-    
+
 import os
 import processing as st
 import networkx as nx
@@ -32,10 +32,10 @@ class Connected(QgsProcessingAlgorithm):
     Field = 'Field'
     Tolerance = 'Allowed Tolerance'
     Output = 'Output'
-    
+
     def __init__(self):
         super().__init__()
-        
+
     def name(self):
         return "Adjacency"
 
@@ -44,22 +44,22 @@ class Connected(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Adjacency")
- 
+
     def group(self):
         return self.tr("Algorithms")
-    
+
     def shortHelpString(self):
-        return self.tr("Calculate adjacenct polygons and connected clusters")
+        return self.tr("Calculate adjacenct polygons and connected clusters. Tolerance specifies the distance by which to buffer each polygon to identify an adjacent polygon. An approximate perimeter shared between the polygons is taken as the perimenter of the overlapping area divided by two.")
 
     def groupId(self):
         return "Algorithms"
-    
+
     def helpUrl(self):
-        return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/blob/master/Datasets/README.pdf"
-    
+        return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
+
     def createInstance(self):
         return type(self)()
-    
+
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterFeatureSource(
             self.Polygons,
@@ -81,16 +81,16 @@ class Connected(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
 
- 
+
         layer = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         features = {f.id():f for f in layer.getFeatures()}
         selected = [f.id() for f in layer.selectedFeatures()]
 
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
-        
+
         if len(selected) == 0:
             selected = list(features.keys())
-            
+
         distance = parameters[self.Tolerance]
         Class_Name = parameters[self.Field]
 
@@ -101,7 +101,7 @@ class Connected(QgsProcessingAlgorithm):
         names = set()
         update = {}
         skip = ['Connection','Adjacent','Perimeter','ORIG_FID']
-        
+
         for total,feature in enumerate(layer.getFeatures()): #Find unique values & Connection
             try:
                 fName = str(feature[Class_Name]).replace(' ','')
@@ -114,59 +114,59 @@ class Connected(QgsProcessingAlgorithm):
 
         fet = QgsFeature()
         fields = QgsFields()
-        fields.append(QgsField("Connection", QVariant.Int))  
-        
+        fields.append(QgsField("Connection", QVariant.Int))
+
         orig_fields = []
-        
-        
+
+
         for field in layer.fields():
             if field.name() not in skip:
                 orig_fields.append(field.name())
                 fields.append (QgsField(field.name(), field.type()))
-        
+
         for name in names:
             fields.append( QgsField(name, QVariant.Double ))
-            
+
         fields.append (QgsField('Adjacent', QVariant.String ))
         fields.append (QgsField('Perimeter', QVariant.Double ))
         fields.append (QgsField('ORIG_ID', QVariant.Int ))
-        
+
         (writer, dest_id) = self.parameterAsSink(parameters, self.Output, context,
                                                fields, QgsWkbTypes.Polygon, layer.sourceCrs())
-                
+
         G = nx.Graph()
 
         index = QgsSpatialIndex(layer.getFeatures())
         total = 100.0/float(total)
-       
+
         feedback.pushInfo(QCoreApplication.translate('Update','Calculating Shared Border Percentages'))
         for enum,feature in enumerate(layer.getFeatures()): #Update features
             try:
-                if total != -1: 
+                if total != -1:
                     feedback.setProgress(int(enum*total))
-                    
+
                 data = {name:0.0 for name in names}
                 curGeom = feature.geometry().buffer(float(distance),5)
                 bbox = curGeom.boundingBox()
                 feats = index.intersects(bbox) #Find geometries that intersect with bounding box
 
                 Connected = []
-                
+
                 for FID in feats:
                     if FID != feature.id(): #Do not intersect with same geometry
                         feat=features[FID]
-                        
+
                         if curGeom.intersects(feat.geometry()): #Check if they intersect
-                            
+
                             if FID in selected and feature.id() in selected: #Element to Element Connection
                                 G.add_edge(feature.id(),FID)
                                 Connected.append(str(FID))
-                                
+
                             geom = curGeom.intersection(feat.geometry()) #Get geometry
                             fName = str(feat[Class_Name]).replace(' ','')
                             Class = fName[:10]
                             try:
-                                if curGeom.overlaps(feat.geometry()):	    
+                                if curGeom.overlaps(feat.geometry()):
                                     length = geom.length()/2 #Estimate as half the perimeter of polygon
                                     if length < 0:
                                         length = 0.0
@@ -176,11 +176,11 @@ class Connected(QgsProcessingAlgorithm):
                                 continue
 
                 G.add_edge(feature.id(),feature.id())
-                
+
                 rows = []
                 for field in orig_fields:
                     rows.append(feature[field])
-                    
+
                 for k,v in data.items():
                     rows.append(v)
 
@@ -188,19 +188,19 @@ class Connected(QgsProcessingAlgorithm):
                     Neighbours = ','.join(Connected).replace('L','')
                 else:
                     Neighbours = 'None'
-                    
+
                 rows.append(Neighbours)
                 rows.append(float(curGeom.length()))
                 rows.append(feature.id())
                 rows.append(feature.geometry())
                 update[feature.id()] = rows
-                
+
             except Exception as e:
                 feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 continue
-            
+
         subGraphs = nx.connected_component_subgraphs(G)
-        
+
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Layer'))
 
         for enum,G in enumerate(subGraphs): #Update features

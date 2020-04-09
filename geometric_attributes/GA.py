@@ -1,8 +1,8 @@
 #==================================
 
-#Author Bjorn Burr Nyberg 
+#Author Bjorn Burr Nyberg
 #University of Bergen
-#Contact bjorn.nyberg@uni.no
+#Contact bjorn.nyberg@uib.no
 #Copyright 2013
 
 #==================================
@@ -20,13 +20,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
-"""
-***************************************************************************
-    Densify vertices along polygon based on DensifyGeometriesInterval.py 
-    by Anita Graser and DensifyGeometries.py Victor Olaya
-    
-"""
-    
 import os, sys
 import processing as st
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
@@ -42,10 +35,10 @@ class GA(QgsProcessingAlgorithm):
     Distance = 'Distance'
     FC = 'Fast Compute'
     Output='Geometric Attributes'
-    
+
     def __init__(self):
         super().__init__()
-        
+
     def name(self):
         return "Geometric Attributes"
 
@@ -54,22 +47,22 @@ class GA(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Geometric Attributes")
- 
+
     def group(self):
         return self.tr("Algorithms")
-    
+
     def shortHelpString(self):
-        return self.tr("Calculate geometric attributes of width and centerline deviation along a centerline of a polygon.")
+        return self.tr("Calculate geometric attributes of width and centerline deviation along a centerline of a polygon. Make sure to use the 'Explode Tool' prior to executing the tool for MultiLineString geometries.")
 
     def groupId(self):
         return "Algorithms"
-    
+
     def helpUrl(self):
-        return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/blob/master/Datasets/README.pdf"
-    
+        return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
+
     def createInstance(self):
         return type(self)()
-    
+
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterFeatureSource(
             self.Polygons,
@@ -92,10 +85,10 @@ class GA(QgsProcessingAlgorithm):
             self.Output,
             self.tr("Geometric Attributes"),
             QgsProcessing.TypeVectorLine))
-    
+
 
     def processAlgorithm(self, parameters, context, feedback):
-        
+
         layer = self.parameterAsSource(parameters, self.Centerline, context)
         layer2 = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         samples = parameters[self.Samples]
@@ -108,28 +101,28 @@ class GA(QgsProcessingAlgorithm):
             feedback.reportError(QCoreApplication.translate('Error','WARNING: Centerline and Polygon input do not have the same projection'))
 
         Precision=5
-        if FC: 
+        if FC:
             field_names = ['Distance','SP_Dist','Width','Deviation','DWidthL','DWidthR']
         else:
             field_names = ['Distance','SP_Dist','Width','Deviation','DWidthL','DWidthR','Diff']
-  
+
         fields = QgsFields()
         fields.append( QgsField('ID', QVariant.Int ))
 
         for name in field_names:
             fields.append( QgsField(name, QVariant.Double ))
-        
+
         (writer, dest_id) = self.parameterAsSink(parameters, self.Output, context,
                                                fields, QgsWkbTypes.LineString, layer.sourceCrs())
-        
+
         fet = QgsFeature()
 
         field_check =layer.fields().indexFromName('ID')
         field_check2 =layer2.fields().indexFromName('ID')
         if field_check == -1 or field_check2 == -1:
-            feedback.reportError(QCoreApplication.translate('Error','Centerline and Polygon input feature require an ID field!'))
+            feedback.reportError(QCoreApplication.translate('Error','Centerline and Polygon input feature require a matching ID field!'))
             return {}
-            
+
         total = 0
         counts = {}
         if FC:
@@ -150,7 +143,7 @@ class GA(QgsProcessingAlgorithm):
                     pnt = pnt.asMultiPolyline()[0]
                 else:
                     pnt = pnt.asPolyline()
-                    
+
                 startx,starty = round(pnt[0][0],Precision),round(pnt[0][1],Precision)
                 endx,endy = round(pnt[-1][0],Precision),round(pnt[-1][1],Precision)
                 ID = feature['ID']
@@ -172,20 +165,20 @@ class GA(QgsProcessingAlgorithm):
                     SPE[ID] = [(startx,starty),(endx,endy)]
                     values2[ID] = c
                     counts[ID] = 1
-                
+
             except Exception as e:
                 feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 continue ##Possible Collapsed Polyline?
-        
+
         del values,values2
         total = 100.0/float(total)
-        ID = None 
+        ID = None
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Width Measurements'))
         report = True
         for enum,feature in enumerate(layer.getFeatures()):
             try:
                 if total != -1:
-                    feedback.setProgress(int(enum*total))  
+                    feedback.setProgress(int(enum*total))
                 pnt = feature.geometry()
                 L = pnt.length()
                 if pnt.isMultipart():
@@ -197,7 +190,7 @@ class GA(QgsProcessingAlgorithm):
                 if ID != curID:
                     startx,starty = round(pnt[0][0],Precision),round(pnt[0][1],Precision)
                     midx,midy = round(pnt[-1][0],Precision),round(pnt[-1][1],Precision)
-                    
+
                     ID = curID
                     if samples > 0:
                         if distance:
@@ -205,12 +198,12 @@ class GA(QgsProcessingAlgorithm):
                             Limit = float(samples)
                         else:
                             Counter = 1
-                            Limit = round((counts[ID]/float(samples)),0) 
+                            Limit = round((counts[ID]/float(samples)),0)
 
                     continue
-                
+
                 endx,endy = round(pnt[-1][0],Precision),round(pnt[-1][1],Precision)
-                
+
                 if samples > 0:
                     if distance:
                         Counter += L
@@ -222,26 +215,26 @@ class GA(QgsProcessingAlgorithm):
                         continue
                 if FC:
                     startx,starty = round(pnt[0][0],Precision),round(pnt[0][1],Precision)
-                    near = index.nearestNeighbor(QgsPointXY(startx,starty), 1)                    
+                    near = index.nearestNeighbor(QgsPointXY(startx,starty), 1)
                     SPv = 1e12
 
                     midx,midy = data[near[0]].geometry().asPoint()
-                
+
                     dx,dy = startx-midx,starty-midy
                     shortestPath = sqrt((dx**2)+(dy**2))
                     if shortestPath < SPv:
                         SPv = shortestPath
-                        
+
                     near = index.nearestNeighbor(QgsPointXY(endx,endy), 1)
                     midx,midy = data[near[0]].geometry().asPoint()
                     dx,dy = endx-midx,endy-midy
-                    
+
                     shortestPath = sqrt((dx**2)+(dy**2))
                     if shortestPath < SPv:
                         SP = shortestPath
 
                 else:
-                    
+
                     m = ((starty - endy)/(startx - endx)) #Slope
                     inter = feats[curID]
                     Distance = inter.geometry().boundingBox().width()/2
@@ -257,9 +250,9 @@ class GA(QgsProcessingAlgorithm):
                         c,s = (1/sqrt(1+m**2),m/sqrt(1+m**2)) #cosine and sin
                         x1,y1 = (midx + Distance*(c),midy + Distance*(s))
                         x2,y2 = (midx - Distance*(c),midy - Distance*(s))
-                        
+
                     geom = QgsGeometry.fromPolylineXY([QgsPointXY(x1,y1),QgsPointXY(midx,midy),QgsPointXY(x2,y2)])
-                
+
                     geom = geom.intersection(inter.geometry())
 
                     if geom.isMultipart():
@@ -268,7 +261,7 @@ class GA(QgsProcessingAlgorithm):
                             startx,starty = midx,midy
                             midx,midy = endx,endy
                             continue
-                        
+
                         for line in polyline:
                             if len(line)==3:
                                 t=1
@@ -277,7 +270,7 @@ class GA(QgsProcessingAlgorithm):
                                 geom2 = QgsGeometry.fromPolylineXY([QgsPointXY(mid[0],mid[1]),QgsPointXY(end[0],end[1])])
                                 geom = QgsGeometry.fromPolylineXY([QgsPointXY(start[0],start[1]),QgsPointXY(mid[0],mid[1]),QgsPointXY(end[0],end[1])])
                                 break
-                        
+
                     else:
                         try:
                             line = geom.asPolyline()
@@ -286,17 +279,17 @@ class GA(QgsProcessingAlgorithm):
                             midx,midy = endx,endy
                             if report:
                                 report = False
-                                feedback.reportError(QCoreApplication.translate('Error','Width measurement along centerline does not intersect with input polygons. Check 1. ID fields corresponds between centerline and polygons 2. Geometry of centerline and polygon inputs (i.e. use "Fix Geometries" tool')) 
+                                feedback.reportError(QCoreApplication.translate('Error','Width measurement along centerline does not intersect with input polygons. Check 1. ID fields corresponds between centerline and polygons 2. Geometry of centerline and polygon inputs by using the "Fix Geometries" tool'))
                             continue
                         geom1 = QgsGeometry.fromPolylineXY([QgsPointXY(line[0][0],line[0][1]),QgsPointXY(line[1][0],line[1][1])])
-                        geom2 = QgsGeometry.fromPolylineXY([QgsPointXY(line[1][0],line[1][1]),QgsPointXY(line[2][0],line[2][1])])		
+                        geom2 = QgsGeometry.fromPolylineXY([QgsPointXY(line[1][0],line[1][1]),QgsPointXY(line[2][0],line[2][1])])
                     Widths = [geom1.length(),geom2.length()]
-                    
-                    
+
+
                 SP = list(SPS[curID])
                 SP.extend(list(SPE[curID]))
                 D = 0
-                
+
                 for start,end in combinations(SP,2):
                     dx = start[0] - end[0]
                     dy =  start[1] - end[1]
@@ -316,16 +309,16 @@ class GA(QgsProcessingAlgorithm):
                 dx = s.x() - e.x()
                 dy =  s.y() - e.y()
                 shortestPath = sqrt((dx**2)+(dy**2))
-        
+
                 dx = s.x() - x
                 dy =  s.y() - y
                 shortestPath1 = sqrt((dx**2)+(dy**2))
-                
+
                 if shortestPath < shortestPath1:
-                    sym = QgsGeometry.fromPolylineXY([QgsPointXY(e.x(),e.y()),QgsPointXY(midx,midy)]) 
+                    sym = QgsGeometry.fromPolylineXY([QgsPointXY(e.x(),e.y()),QgsPointXY(midx,midy)])
                 else:
-                    sym = QgsGeometry.fromPolylineXY([QgsPointXY(x,y),QgsPointXY(midx,midy)]) 
-                
+                    sym = QgsGeometry.fromPolylineXY([QgsPointXY(x,y),QgsPointXY(midx,midy)])
+
                 if d < 0:
                     DW = -(sym.length())
                 else:
@@ -337,16 +330,16 @@ class GA(QgsProcessingAlgorithm):
                     geom = feature.geometry()
                 else:
                     W = geom.length()
-                    
+
                     rows = [curID,feature['Distance'],feature['SP_Dist'],W,DW,(W/2)+DW,-(W/2)+DW,(min(Widths)/max(Widths))*100]
 
                 startx,starty = midx,midy
                 midx,midy = endx,endy
 
-                fet.setGeometry(geom)   
+                fet.setGeometry(geom)
                 fet.setAttributes(rows)
                 writer.addFeature(fet)
-                
+
                 if distance:
                     Counter -= samples
                 else:

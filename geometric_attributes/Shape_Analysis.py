@@ -1,7 +1,7 @@
 #==================================
-#Author Bjorn Burr Nyberg 
+#Author Bjorn Burr Nyberg
 #University of Bergen
-#Contact bjorn.nyberg@uni.no
+#Contact bjorn.nyberg@uib.no
 #Copyright 2014
 #==================================
 
@@ -32,10 +32,10 @@ class Shape(QgsProcessingAlgorithm):
     Width = 'Geometric Attributes'
     Directional = 'Directional'
     Output = 'Output'
-    
+
     def __init__(self):
         super().__init__()
-        
+
     def name(self):
         return "Shape Analysis"
 
@@ -44,22 +44,22 @@ class Shape(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Shape Analysis")
- 
+
     def group(self):
         return self.tr("Algorithms")
-    
+
     def shortHelpString(self):
-        return self.tr("Calculate the shape of a polygon")
+        return self.tr("Calculate the shape of a polygon as crescentric, sinuous or ellipsoidal/rectangular with a symmetrical or asymmetrical shape.")
 
     def groupId(self):
         return "Algorithms"
-    
+
     def helpUrl(self):
-        return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/blob/master/Datasets/README.pdf"
-    
+        return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
+
     def createInstance(self):
         return type(self)()
-    
+
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterFeatureSource(
             self.Polygons,
@@ -77,23 +77,23 @@ class Shape(QgsProcessingAlgorithm):
             QgsProcessing.TypeVectorPolygon))
 
     def processAlgorithm(self, parameters, context, feedback):
-        
+
         layer = self.parameterAsVectorLayer(parameters, self.Width, context)
         layer2 = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         Directional = parameters[self.Directional]
 
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
-        
+
         '''Input thresholds - for more detail refer to
         Nyberg, B., Buckley, S.J., Howell, J.A., Nanson, R.A. (2015). Geometric attribute and shape characterization of modern
         depositional elements: A quantitative GIS method for empirical analysis, Computers & Geosciences, Vo. 82, 2015, p. 191-204. '''
-        
+
         Crescentric_Threshold = 1
         Sinuous_Threshold = 0.2
         Symmetry_Threshold = 0.2
         Linear_Threshold = 0.5
         Precision = 3 #Point precision
-         
+
         D,W,DW,SP = {},{},{},{}
         IDs = set([])
 
@@ -103,12 +103,12 @@ class Shape(QgsProcessingAlgorithm):
             if field_check == -1:
                 feedback.reportError(QCoreApplication.translate('Error','Width measurements feature class do not have the required fields of ID, Distance, Width, Deviation and SP_Dist'))
                 return {}
-            
+
         field_check = layer2.fields().indexFromName('ID')
         if field_check == -1:
             feedback.reportError(QCoreApplication.translate('Error','Polygons feature class does not have an ID field!'))
             return {}
-    
+
         for total,feature in enumerate(layer.getFeatures()):
             ID = feature['ID']
             IDs.update([ID])
@@ -126,16 +126,16 @@ class Shape(QgsProcessingAlgorithm):
         fields = QgsFields()
 
         field_names = ['Length','Sinuosity','Width','Deviation','Shape']
-        
-        fields.append( QgsField('ID', QVariant.Int ))   
-        
-        for name in field_names[:-1]:   
+
+        fields.append( QgsField('ID', QVariant.Int ))
+
+        for name in field_names[:-1]:
             fields.append( QgsField(name, QVariant.Double ))
-            
+
         fields.append(QgsField(field_names[-1], QVariant.String ))
-        
+
         fet = QgsFeature(fields)
-        
+
         (writer, dest_id) = self.parameterAsSink(parameters, self.Output, context,
                                                fields, QgsWkbTypes.Polygon, layer.sourceCrs())
 
@@ -149,46 +149,46 @@ class Shape(QgsProcessingAlgorithm):
                 feedback.setProgress(int((100 * Counter)/Total))
                 Counter += 1
 
-                Distance = max(D[ID])         
+                Distance = max(D[ID])
                 Width = max(W[ID])
                 SPv = max(SP[ID])
-                
+
                 x = [n/Distance for n in D[ID]]
                 y = [n/Width for n in W[ID]]
-                
+
                 m, intercept, r_value, p_value, std_err = stats.linregress(x,y)
                 r2=r_value**2
-                
-                xMax = max(DW[ID])   
+
+                xMax = max(DW[ID])
                 x = [n/xMax for n in DW[ID] if n > 0]
-                x2 = [-(n/-xMax) for n in DW[ID] if n < 0] 
-                
+                x2 = [-(n/-xMax) for n in DW[ID] if n < 0]
+
                 mm = [float(len(x)),float(len(x2))] #min and max values
-                mm = min(mm)/max(mm)  
+                mm = min(mm)/max(mm)
                 c=xMax/(Width/2.0)
 
                 Class = ''
 
-                if c > Crescentric_Threshold: 
+                if c > Crescentric_Threshold:
                     if mm < Sinuous_Threshold:
                         if fabs(m) > Symmetry_Threshold:
                             Class = "C AS"
                         elif r2 > Linear_Threshold:
-                            Class = "C L"    
+                            Class = "C L"
                         else:
                             Class = "C S"
                     else:
                         if fabs(m) > Symmetry_Threshold:
                             Class = "S AS"
                         elif r2 > Linear_Threshold:
-                            Class = "S L"    
+                            Class = "S L"
                         else:
                             Class = "S S"
                 else:
                     if fabs(m) > Symmetry_Threshold:
                         Class = "E AS"
                     elif r2 > Linear_Threshold:
-                        Class = "E L"               
+                        Class = "E L"
                     else:
                         Class= "E S"
 
@@ -198,18 +198,18 @@ class Shape(QgsProcessingAlgorithm):
                             Class = ' '.join([Class,'1'])
                         else:
                             Class = ' '.join([Class,'0'])
-            
+
                 data[ID] = (round(Distance,Precision),round((Distance/SPv),Precision),round(Width,Precision),round(xMax,Precision),Class)
-                
+
             except Exception as e:
                 feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 continue
 
         total = 100.0/float(total)
-           
+
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Output'))
         for enum,feature in enumerate(layer2.getFeatures()): #Update features
-            if total != -1: 
+            if total != -1:
                 feedback.setProgress(int(enum*total))
             ID = feature['ID']
             if ID in data:

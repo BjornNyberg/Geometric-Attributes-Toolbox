@@ -6,11 +6,11 @@
 name=Geometric Attributes
 qgisMinimumVersion=3.4
 description=Analyze geometric attributes of a feature along its centerline
-version=0.2
+version=0.3
 author=Bjorn Nyberg
 email=bjorn.nyberg@uib.no
 
-about=A set of tools for calculating the centerline, width, deviation, shape and adjacency of polygons. Citation - Nyberg, B., Buckley, S.J., Howell, J.A., Nanson, R.A., (2015). Geometric attribute and shape characterization of modern depositional elements: A quantitative GIS method for empirical analysis, Computers & Geosciences, Vo. 82, 2015, p. 191-204.
+about=A set of tools for calculating the centerline, width, deviation, shape, sinuosity and adjacency of polygons. Citation - Nyberg, B., Buckley, S.J., Howell, J.A., Nanson, R.A., (2015). Geometric attribute and shape characterization of modern depositional elements: A quantitative GIS method for empirical analysis, Computers & Geosciences, Vo. 82, 2015, p. 191-204.
 
 tracker=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/issues
 repository=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/tree/master/geometric_attributes
@@ -20,10 +20,15 @@ repository=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/tree/mast
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-# changelog=
+changelog= Version 0.3 - 09/04/2020
+	- Improved centerline method selection
+	- Fixed temporary folder location
+	- Added sinuosity
+	- Added calculate centerline distance
+	- Added merge linestring and calculate statistics
 
 # Tags are comma separated with spaces allowed
-tags=centerline, width, geometric attributes, shape, topology, deviation, clusters, adjacency
+tags=centerline,width,geometric attributes,shape,topology,deviation,clusters,adjacency,sinuosity,distance,merge
 
 homepage=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox
 category=Vector
@@ -37,10 +42,10 @@ deprecated=False
 # Since QGIS 3.8, a comma separated list of plugins to be installed
 # (or upgraded) can be specified.
 # Check the documentation for more information.
-plugin_dependencies=networkx
+# plugin_dependencies=networkx
 
-Category of the plugin: Raster, Vector, Database or Web
-# category=
+# Category of the plugin: Raster, Vector, Database or Web
+# category=Vector
 
 # If the plugin can run on QGIS Server.
 server=False

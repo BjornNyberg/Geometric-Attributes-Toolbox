@@ -1,8 +1,8 @@
 #==================================
 
-#Author Bjorn Burr Nyberg 
+#Author Bjorn Burr Nyberg
 #University of Bergen
-#Contact bjorn.nyberg@uni.no
+#Contact bjorn.nyberg@uib.no
 #Copyright 2013
 
 #==================================
@@ -22,13 +22,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
 """
 ***************************************************************************
-    Densify script based on DensifyGeometriesInterval.py by Anita Graser and 
+    Densify script based on DensifyGeometriesInterval.py by Anita Graser and
     DensifyGeometries.py by Victor Olaya
     ---------------------
 ***************************************************************************
 """
-    
-import os, sys, math, shutil, string, random
+
+import os, sys, math, string, random,tempfile
 import processing as st
 import networkx as nx
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
@@ -43,10 +43,10 @@ class Centerlines(QgsProcessingAlgorithm):
     Densify='Line Spacing'
     T = 'Trim Iterations'
     Output='Centerlines'
-    
+
     def __init__(self):
         super().__init__()
-        
+
     def name(self):
         return "Centerlines"
 
@@ -55,22 +55,23 @@ class Centerlines(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Centerlines")
- 
+
     def group(self):
         return self.tr("Algorithms")
-    
+
     def shortHelpString(self):
-        return self.tr('Calculate centerlines of each polygon. Available methods: 1. Centerlines, 2. All, 3. Circles or 4. a number (e.g., 50) indicating number of iterations to trim dangles')
+        return self.tr('''Calculate centerlines of each polygon. Available methods: 1. Centerlines, 2. All, 3. Circles or 4. a number (e.g., 50) indicating number of iterations to trim dangles.\n
+        Output will calculate the distance (Distance), reverse distance (RDistance), shortest path distance (SP_Dist) and reverse shortest path distance (SP_RDist) from the centerline(s) startpoint.''')
 
     def groupId(self):
         return "Algorithms"
-    
+
     def helpUrl(self):
-        return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/blob/master/Datasets/README.pdf"
-    
+        return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
+
     def createInstance(self):
         return type(self)()
-    
+
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterFeatureSource(
             self.Polygons,
@@ -92,10 +93,10 @@ class Centerlines(QgsProcessingAlgorithm):
             self.Output,
             self.tr("Centerlines"),
             QgsProcessing.TypeVectorLine))
-    
+
 
     def processAlgorithm(self, parameters, context, feedback):
-        
+
         layer = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         aMethod = parameters[self.Method]
         Threshold = parameters[self.T]
@@ -103,7 +104,7 @@ class Centerlines(QgsProcessingAlgorithm):
         Method = mDict[aMethod]
 
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
-        
+
         def densify(polyline, interval): #based on DensifyGeometriesInterval.py
             output = []
             for i in range(len(polyline) - 1):
@@ -126,23 +127,23 @@ class Centerlines(QgsProcessingAlgorithm):
                         break
             output.append(polyline[len(polyline) - 1])
             return output
-            
+
         field_check =layer.fields().indexFromName('ID')
-            
-        if field_check == -1:   
+
+        if field_check == -1:
             pr = layer.dataProvider()
             pr.addAttributes([QgsField("ID", QVariant.Int)])
-            layer.updateFields() 
-            
+            layer.updateFields()
+
         layer.startEditing()
         for feature in layer.getFeatures():
             feature['ID'] = feature.id()
             layer.updateFeature(feature)
         layer.commitChanges()
-            
+
         fet = QgsFeature()
         fields = QgsFields()
-        fields.append(QgsField("ID", QVariant.Int))  
+        fields.append(QgsField("ID", QVariant.Int))
         field_names = ['Distance','RDistance','SP_Dist','SP_RDist']
 
         for name in field_names:
@@ -151,41 +152,41 @@ class Centerlines(QgsProcessingAlgorithm):
         fet2 = QgsFeature(fields)
         (writer2, dest_id) = self.parameterAsSink(parameters, self.Output, context,
                                                fields, QgsWkbTypes.LineString, layer.sourceCrs())
-                                       
-        outDir = os.path.join(os.environ['TMP'],'GA')
+
+        outDir = os.path.join(tempfile.gettempdir(),'GA')
         if not os.path.exists(outDir):
             os.mkdir(outDir)
-                
+
         fname = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
         infc = os.path.join(outDir,'%s.shp'%(fname))
         Densify_Interval = parameters[self.Densify]
-        
-        Precision=5
-    
+
+        Precision,tol = 6, 1e-6
+
         keepNodes= set([])
         fields = QgsFields()
-        fields.append(QgsField("ID", QVariant.Int))  
+        fields.append(QgsField("ID", QVariant.Int))
         writer = QgsVectorFileWriter(infc, "CP1250", fields, QgsWkbTypes.Point, layer.sourceCrs(), "ESRI Shapefile") #.shp requirement of SAGA
-        
+
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Vertices'))
         total = 100.0/layer.featureCount()
-        
+
         for enum,feature in enumerate(layer.getFeatures()):
-            if total != -1: 
+            if total != -1:
                 feedback.setProgress(int(enum*total))
 
             geomType = feature.geometry()
             geom = []
             if geomType.wkbType() == QgsWkbTypes.Polygon:
                 polygon = geomType.asPolygon()
-                if Densify_Interval == 0 : 
+                if Densify_Interval == 0 :
                     geom = chain(*polygon)
                 else:
                     for ring in polygon:
-                        geom.extend(densify(ring, Densify_Interval))  
+                        geom.extend(densify(ring, Densify_Interval))
             else:
                 polygons = geomType.asMultiPolygon()
-                if Densify_Interval == 0 : 
+                if Densify_Interval == 0 :
                     geom = chain(*chain(*polygons))
                 else:
                     for poly in polygons:
@@ -194,7 +195,7 @@ class Centerlines(QgsProcessingAlgorithm):
                            p.extend(densify(ring, Densify_Interval))
                         geom.extend(p)
             for points in geom:
-                if (round(points.x(),Precision),round(points.y(),Precision)) not in keepNodes:   
+                if (round(points.x(),Precision),round(points.y(),Precision)) not in keepNodes:
                     pnt = QgsGeometry.fromPointXY(QgsPointXY(points.x(),points.y()))
                     fet.setGeometry(pnt)
                     fet.setAttributes([feature['ID']])
@@ -203,53 +204,49 @@ class Centerlines(QgsProcessingAlgorithm):
 
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Voronoi Polygons'))
         del writer
-        
+
         tempVP = os.path.join(outDir,'VL.shp') #.shp requirement of SAGA
 
-        param = {'POINTS':infc,'POLYGONS':tempVP,'FRAME':10.0}  
-        Voronoi = st.run("saga:thiessenpolygons",param,context=context,feedback=feedback)   
-        
+        param = {'POINTS':infc,'POLYGONS':tempVP,'FRAME':10.0}
+        Voronoi = st.run("saga:thiessenpolygons",param,context=context,feedback=feedback)
+
         del keepNodes
         edges = {}
-        
+
         feedback.pushInfo(QCoreApplication.translate('Update','Calculating Edges'))
 
         param = {'INPUT':Voronoi['POLYGONS'],'OUTPUT':'memory:'}
         lines = st.run("qgis:polygonstolines",param,context=context,feedback=feedback)
 
-        try: #delete temporary files
-            shutil.rmtree(os.path.dirname(dirname),ignore_errors=True)
-        except Exception as e:
-            pass
-        
         param = {'INPUT':lines['OUTPUT'],'OUTPUT':'memory:'}
         exploded = st.run("native:explodelines",param,context=context,feedback=feedback)
         param = {'INPUT':exploded['OUTPUT'],'PREDICATE':6,'INTERSECT':layer,'METHOD':0}
-        st.run("native:selectbylocation",param,context=context,feedback=feedback)              
+        st.run("native:selectbylocation",param,context=context,feedback=feedback)
         total = 100.0/exploded['OUTPUT'].selectedFeatureCount()
-        
+
         for enum,feature in enumerate(exploded['OUTPUT'].selectedFeatures()):
             try:
-                if total != -1: 
+                if total != -1:
                     feedback.setProgress(int(enum*total))
                 part = feature.geometry().asPolyline()
                 startx = None
-                for point in part: 
-                    if startx == None:	
+                for point in part:
+                    if startx == None:
                         startx,starty = (round(point.x(),Precision),round(point.y(),Precision))
                         continue
                     endx,endy = (round(point.x(),Precision),round(point.y(),Precision))
                     geom = QgsGeometry.fromPolylineXY([QgsPointXY(startx,starty),QgsPointXY(endx,endy)])
                     ID = feature['ID']
                     Length = geom.length()
-                    if ID in edges:
-                        edges[ID].add_edge((startx,starty),(endx,endy),weight=Length)
-                    else:
-                        Graph = nx.Graph()
-                        Graph.add_edge((startx,starty),(endx,endy),weight=Length)
-                        edges[ID] = Graph
+                    if Length > tol:
+                        if ID in edges:
+                            edges[ID].add_edge((startx,starty),(endx,endy),weight=Length)
+                        else:
+                            Graph = nx.Graph()
+                            Graph.add_edge((startx,starty),(endx,endy),weight=Length)
+                            edges[ID] = Graph
                     startx,starty = endx,endy
-                    
+
             except Exception as e:
                 feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
 
@@ -258,177 +255,182 @@ class Centerlines(QgsProcessingAlgorithm):
         if edges:
             total = 100.0/len(edges)
             for enum,FID in enumerate(edges):
-        
+
                 feedback.setProgress(int(enum*total))
                 G = edges[FID]
                 G=max(nx.connected_component_subgraphs(G), key=len) #Largest Connected Graph
-                
-                if Threshold > 0:
-                    Threshold = int(Threshold)
-                    G2 = G.copy()
-                    G3 = G.copy()
-                    for n in range(int(Threshold)):
+                try:
+                    if Threshold > 0:
+                        Threshold = int(Threshold)
+                        G2 = G.copy()
+                        G3 = G.copy()
+                        for n in range(int(Threshold)):
+                            degree = G2.degree()
+                            removeNodes  = [k for k,v in degree if v == 1]
+                            G2.remove_nodes_from(removeNodes)
+
                         degree = G2.degree()
-                        removeNodes  = [k for k,v in degree if v == 1]
-                        G2.remove_nodes_from(removeNodes)
-
-                    degree = G2.degree()
-                    endPoints = [k for k,v in degree if v == 1] 
-        
-                    G3.remove_edges_from(G2.edges)
-                    
-                    for source in endPoints:
-                        length,path = nx.single_source_dijkstra(G3,source,weight='weight')
-                        Index = max(length,key=length.get)
-                        sx = None
-                        G2.add_path(path[Index])
-                        
-                    del G3
-                    
-                    source = list(G2.nodes())[0] #Get length along all paths
-                    for n in range(2):
-                        length,path = nx.single_source_dijkstra(G,source,weight='weight')
-                        Index = max(length,key=length.get)
-                        source = path[Index][-1] 
-                    length2,path2 = nx.single_source_dijkstra(G,source,weight='weight')
-                    
-                    for p in G2.edges:
-                        points = []
-                        points.append(QgsPointXY(p[0][0],p[0][1]))
-                        points.append(QgsPointXY(p[1][0],p[1][1]))
-                        
-                        D = max([length[(p[0][0],p[0][1])],length[(p[1][0],p[1][1])]])
-                        D2= max([length2[(p[0][0],p[0][1])],length2[(p[1][0],p[1][1])]])
-                        
-                        dx = path[Index][0][0] - p[1][0]
-                        dy =  path[Index][0][1] - p[1][1]
-                        dx2 = path[Index][0][0] - p[0][0]
-                        dy2 =  path[Index][0][1] - p[0][1]
-                        SP = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
-
-                        dx = path[Index][-1][0] - p[1][0]
-                        dy =  path[Index][-1][1] - p[1][1]
-                        dx2 = path[Index][-1][0] - p[0][0]
-                        dy2 =  path[Index][-1][1] - p[0][1]
-                        SP2 = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
-
-                        fet2.setGeometry(QgsGeometry.fromPolylineXY(points))
-                        fet2.setAttributes([FID,D,D2,SP,SP2])
-                        writer2.addFeature(fet2)
-   
-                    del G2    
-              
-                elif Method == 'All':
-                       
-                    curLen = 0
-                    G2 = G.copy()
-                    while len(G2) != curLen:
-                        curLen = len(G2)
-                        degree = G2.degree()
-                        removeNodes = [k for k,v in degree if v == 1]
-                        G2.remove_nodes_from(removeNodes)
-              
-                    source = list(G.nodes())[0]
-                    for n in range(2):
-                        length,path = nx.single_source_dijkstra(G,source,weight='weight')
-                        Index = max(length,key=length.get)
-                        source = path[Index][-1]  
-
-                    G2.add_path(path[Index])
-                    
-                    source = list(G2.nodes())[0] #Get length along all paths
-                    for n in range(2):
-                        length,path = nx.single_source_dijkstra(G,source,weight='weight')
-                        Index = max(length,key=length.get)
-                        source = path[Index][-1] 
-                    length2,path2 = nx.single_source_dijkstra(G,source,weight='weight')
-                    
-                    for p in G2.edges:
-                        points = []
-                        points.append(QgsPointXY(p[0][0],p[0][1]))
-                        points.append(QgsPointXY(p[1][0],p[1][1]))
-                        
-                        D = max([length[(p[0][0],p[0][1])],length[(p[1][0],p[1][1])]])
-                        D2= max([length2[(p[0][0],p[0][1])],length2[(p[1][0],p[1][1])]])
-                        
-                        dx = path[Index][0][0] - p[1][0]
-                        dy =  path[Index][0][1] - p[1][1]
-                        dx2 = path[Index][0][0] - p[0][0]
-                        dy2 =  path[Index][0][1] - p[0][1]
-                        SP = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
-
-                        dx = path[Index][-1][0] - p[1][0]
-                        dy =  path[Index][-1][1] - p[1][1]
-                        dx2 = path[Index][-1][0] - p[0][0]
-                        dy2 =  path[Index][-1][1] - p[0][1]
-                        SP2 = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
-
-                        fet2.setGeometry(QgsGeometry.fromPolylineXY(points))
-                        fet2.setAttributes([FID,D,D2,SP,SP2])
-                        writer2.addFeature(fet2)
-                     
-                    del G2       
-                  
-                
-                elif Method == 'Circles':
-                       
-                    curLen = 0
-                    G2 = G.copy()
-                    while len(G2) != curLen:
-                        curLen = len(G2)
-                        degree = G2.degree()
-                        removeNodes = [k for k,v in degree if v == 1]
-                        G2.remove_nodes_from(removeNodes)
-
-                    for p in G2.edges:
-                        points = []
-                        points.append(QgsPointXY(p[0][0],p[0][1]))
-                        points.append(QgsPointXY(p[1][0],p[1][1]))
-
-                        fet2.setGeometry(QgsGeometry.fromPolylineXY(points))
-                        fet2.setAttributes([FID])
-                        writer2.addFeature(fet2)
-                     
-                    del G2       
-     
-   
-                else:
-                    source = list(G.nodes())[0]
-                    for n in range(2):
-                        length,path = nx.single_source_dijkstra(G,source,weight='weight')
-                        Index = max(length,key=length.get)
-                        source = path[Index][-1] 
-                    length2,path2 = nx.single_source_dijkstra(G,source,weight='weight')
-                    sx = None
-                    for p in path[Index]:
-                        if sx == None:
-                            sx,sy = p[0], p[1]
+                        if len(G2) < 2:
+                            feedback.reportError(QCoreApplication.translate('Update','No centerline found after trimming dangles for polygon ID %s - skipping' %(FID)))
                             continue
-                        ex,ey = p[0],p[1]    
-                        D = max([length[(sx,sy)],length[(ex,ey)]])
-                        D2= max([length2[(sx,sy)],length2[(ex,ey)]])
-                        dx = path[Index][0][0] - ex
-                        dy =  path[Index][0][1] - ey
-                        dx2 = path[Index][0][0] - sx
-                        dy2 =  path[Index][0][1] - sy
-                        SP = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
 
-                        dx = path[Index][-1][0] - ex
-                        dy =  path[Index][-1][1] - ey
-                        dx2 = path[Index][-1][0] - sx
-                        dy2 =  path[Index][-1][1] - sy
-                        SP2 = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
-                        
-                        points = [QgsPointXY(sx,sy),QgsPointXY(ex,ey)]
-                        fet2.setGeometry(QgsGeometry.fromPolylineXY(points))
-                        fet2.setAttributes([FID,D,D2,SP,SP2])
-                        writer2.addFeature(fet2)
-                        sx,sy = ex,ey
-               
-                G.clear()
+                        endPoints = [k for k,v in degree if v == 1]
 
-            
+                        G3.remove_edges_from(G2.edges)
+
+                        for source in endPoints:
+                            length,path = nx.single_source_dijkstra(G3,source,weight='weight')
+                            Index = max(length,key=length.get)
+                            G2.add_path(path[Index])
+
+                        del G3
+
+                        source = list(G2.nodes())[0] #Get length along all paths
+                        for n in range(2):
+                            length,path = nx.single_source_dijkstra(G,source,weight='weight')
+                            Index = max(length,key=length.get)
+                            source = path[Index][-1]
+                        length2,path2 = nx.single_source_dijkstra(G,source,weight='weight')
+
+                        for p in G2.edges:
+                            points = []
+                            points.append(QgsPointXY(p[0][0],p[0][1]))
+                            points.append(QgsPointXY(p[1][0],p[1][1]))
+
+                            D = max([length[(p[0][0],p[0][1])],length[(p[1][0],p[1][1])]])
+                            D2= max([length2[(p[0][0],p[0][1])],length2[(p[1][0],p[1][1])]])
+
+                            dx = path[Index][0][0] - p[1][0]
+                            dy =  path[Index][0][1] - p[1][1]
+                            dx2 = path[Index][0][0] - p[0][0]
+                            dy2 =  path[Index][0][1] - p[0][1]
+                            SP = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
+
+                            dx = path[Index][-1][0] - p[1][0]
+                            dy =  path[Index][-1][1] - p[1][1]
+                            dx2 = path[Index][-1][0] - p[0][0]
+                            dy2 =  path[Index][-1][1] - p[0][1]
+                            SP2 = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
+
+                            fet2.setGeometry(QgsGeometry.fromPolylineXY(points))
+                            fet2.setAttributes([FID,D,D2,SP,SP2])
+                            writer2.addFeature(fet2)
+
+                        del G2
+
+                    elif Method == 'All':
+
+                        curLen = 0
+                        G2 = G.copy()
+                        while len(G2) != curLen:
+                            curLen = len(G2)
+                            degree = G2.degree()
+                            removeNodes = [k for k,v in degree if v == 1]
+                            G2.remove_nodes_from(removeNodes)
+
+                        source = list(G.nodes())[0]
+                        for n in range(2):
+                            length,path = nx.single_source_dijkstra(G,source,weight='weight')
+                            Index = max(length,key=length.get)
+                            source = path[Index][-1]
+
+                        G2.add_path(path[Index])
+
+                        source = list(G2.nodes())[0] #Get length along all paths
+                        for n in range(2):
+                            length,path = nx.single_source_dijkstra(G,source,weight='weight')
+                            Index = max(length,key=length.get)
+                            source = path[Index][-1]
+                        length2,path2 = nx.single_source_dijkstra(G,source,weight='weight')
+
+                        for p in G2.edges:
+                            points = []
+                            points.append(QgsPointXY(p[0][0],p[0][1]))
+                            points.append(QgsPointXY(p[1][0],p[1][1]))
+
+                            D = max([length[(p[0][0],p[0][1])],length[(p[1][0],p[1][1])]])
+                            D2= max([length2[(p[0][0],p[0][1])],length2[(p[1][0],p[1][1])]])
+
+                            dx = path[Index][0][0] - p[1][0]
+                            dy =  path[Index][0][1] - p[1][1]
+                            dx2 = path[Index][0][0] - p[0][0]
+                            dy2 =  path[Index][0][1] - p[0][1]
+                            SP = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
+
+                            dx = path[Index][-1][0] - p[1][0]
+                            dy =  path[Index][-1][1] - p[1][1]
+                            dx2 = path[Index][-1][0] - p[0][0]
+                            dy2 =  path[Index][-1][1] - p[0][1]
+                            SP2 = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
+
+                            fet2.setGeometry(QgsGeometry.fromPolylineXY(points))
+                            fet2.setAttributes([FID,D,D2,SP,SP2])
+                            writer2.addFeature(fet2)
+
+                        del G2
+
+                    elif Method == 'Circles':
+
+                        curLen = 0
+                        G2 = G.copy()
+                        while len(G2) != curLen:
+                            curLen = len(G2)
+                            degree = G2.degree()
+                            removeNodes = [k for k,v in degree if v == 1]
+                            G2.remove_nodes_from(removeNodes)
+
+                        for p in G2.edges:
+                            points = []
+                            points.append(QgsPointXY(p[0][0],p[0][1]))
+                            points.append(QgsPointXY(p[1][0],p[1][1]))
+
+                            fet2.setGeometry(QgsGeometry.fromPolylineXY(points))
+                            fet2.setAttributes([FID])
+                            writer2.addFeature(fet2)
+
+                        del G2
+
+
+                    else:
+                        source = list(G.nodes())[0]
+                        for n in range(2):
+                            length,path = nx.single_source_dijkstra(G,source,weight='weight')
+                            Index = max(length,key=length.get)
+                            source = path[Index][-1]
+                        length2,path2 = nx.single_source_dijkstra(G,source,weight='weight')
+                        sx = None
+                        for p in path[Index]:
+                            if sx == None:
+                                sx,sy = p[0], p[1]
+                                continue
+                            ex,ey = p[0],p[1]
+                            D = max([length[(sx,sy)],length[(ex,ey)]])
+                            D2= max([length2[(sx,sy)],length2[(ex,ey)]])
+                            dx = path[Index][0][0] - ex
+                            dy =  path[Index][0][1] - ey
+                            dx2 = path[Index][0][0] - sx
+                            dy2 =  path[Index][0][1] - sy
+                            SP = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
+
+                            dx = path[Index][-1][0] - ex
+                            dy =  path[Index][-1][1] - ey
+                            dx2 = path[Index][-1][0] - sx
+                            dy2 =  path[Index][-1][1] - sy
+                            SP2 = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
+
+                            points = [QgsPointXY(sx,sy),QgsPointXY(ex,ey)]
+                            fet2.setGeometry(QgsGeometry.fromPolylineXY(points))
+                            fet2.setAttributes([FID,D,D2,SP,SP2])
+                            writer2.addFeature(fet2)
+                            sx,sy = ex,ey
+
+                except Exception:
+                    feedback.reportError(QCoreApplication.translate('Update','No centerline found for polygon ID %s - skipping' %(FID)))
+                    continue
+                finally:
+                    G.clear()
+
+
         del writer2,edges
 
         return {self.Output:dest_id}
-

@@ -39,6 +39,9 @@ from .DCenterlines import DCenterlines
 from .GA import GA
 from .Overlap import Overlap
 from .Shape_Analysis import Shape
+from .mergeLines import mergeLines
+from .Sinuosity import Sinuosity
+from .Centerline_Lengths import centDist
 
 
 class GeometricAttributesProvider(QgsProcessingProvider):
@@ -66,6 +69,9 @@ class GeometricAttributesProvider(QgsProcessingProvider):
         self.addAlgorithm(GA())
         self.addAlgorithm(Overlap())
         self.addAlgorithm(Shape())
+        self.addAlgorithm(mergeLines())
+        self.addAlgorithm(Sinuosity())
+        self.addAlgorithm(centDist())
 
     def id(self):
         """
