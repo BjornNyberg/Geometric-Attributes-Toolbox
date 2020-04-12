@@ -57,14 +57,17 @@ class Centerlines(QgsProcessingAlgorithm):
         return self.tr("Centerlines")
 
     def group(self):
-        return self.tr("Algorithms")
+        return self.tr("Polygon Tools")
 
     def shortHelpString(self):
-        return self.tr('''Calculate centerlines of each polygon. Available methods: 1. Centerlines, 2. All, 3. Circles or 4. a number (e.g., 50) indicating number of iterations to trim dangles.\n
+        return self.tr('''Calculate centerline(s) of each polygon. Available methods: 1. 'Centerlines' will calculate the shortest path between start and endpoint. 2. 'All' will calculate all shortest path(s)
+        between start and endpoint. 3. 'Circles' will calculate the all circles within a polygon. 4 'A number (e.g., 50)' will calculate all shortest path from all the start points generated after trimming
+        dangles by N iterations. Vertex spacing indicates the spacing of vertices along the polygon for creating the thiessen polygons. A lower vertex spacing will increase the accuracy for the centerline at
+        the cost of processing time.\n
         Output will calculate the distance (Distance), reverse distance (RDistance), shortest path distance (SP_Dist) and reverse shortest path distance (SP_RDist) from the centerline(s) startpoint.''')
 
     def groupId(self):
-        return "Algorithms"
+        return "Polygon Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
@@ -86,7 +89,7 @@ class Centerlines(QgsProcessingAlgorithm):
             0.0))
         self.addParameter(QgsProcessingParameterNumber(
             self.Densify,
-            self.tr("Line Spacing"),
+            self.tr("Vertex Spacing"),
             QgsProcessingParameterNumber.Double,
             0.0))
         self.addParameter(QgsProcessingParameterFeatureSink(
@@ -208,7 +211,7 @@ class Centerlines(QgsProcessingAlgorithm):
         tempVP = os.path.join(outDir,'VL.shp') #.shp requirement of SAGA
 
         param = {'POINTS':infc,'POLYGONS':tempVP,'FRAME':10.0}
-        Voronoi = st.run("saga:thiessenpolygons",param,context=context,feedback=feedback)
+        Voronoi = st.run("saga:thiessenpolygons",param,context=context,feedback=None)
 
         del keepNodes
         edges = {}

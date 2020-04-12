@@ -45,13 +45,13 @@ class Overlap(QgsProcessingAlgorithm):
         return self.tr("Remove Overlap")
 
     def group(self):
-        return self.tr("Algorithms")
+        return self.tr("Polygon Tools")
 
     def shortHelpString(self):
         return self.tr("Create a topologically consistent feature class by remvoing the overlapping area of adjacent polygons within a given tolerance distance.")
 
     def groupId(self):
-        return "Algorithms"
+        return "Polygon Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

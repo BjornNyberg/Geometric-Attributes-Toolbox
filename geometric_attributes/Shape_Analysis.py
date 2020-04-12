@@ -46,13 +46,13 @@ class Shape(QgsProcessingAlgorithm):
         return self.tr("Shape Analysis")
 
     def group(self):
-        return self.tr("Algorithms")
+        return self.tr("Polygon Tools")
 
     def shortHelpString(self):
         return self.tr("Calculate the shape of a polygon as crescentric, sinuous or ellipsoidal/rectangular with a symmetrical or asymmetrical shape.")
 
     def groupId(self):
-        return "Algorithms"
+        return "Polygon Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

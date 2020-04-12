@@ -26,32 +26,33 @@ import networkx as nx
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import (QgsVectorLayer, QgsSpatialIndex,QgsProcessingParameterEnum, QgsField,QgsVectorFileWriter, QgsProcessingParameterBoolean, QgsFeature, QgsPointXY, QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessing,QgsWkbTypes, QgsGeometry, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSource, QgsProcessingParameterFeatureSink,QgsFeatureSink,QgsFeatureRequest,QgsFields,QgsProperty)
 from itertools import combinations,chain
-from math import sqrt
+from math import sqrt, degrees,atan,radians,tan
 
-class centDist(QgsProcessingAlgorithm):
+class Transects(QgsProcessingAlgorithm):
 
     Centerlines = 'Centerlines'
-    explode = 'Explode'
+    Samples = 'Samples'
     Densify = 'Densify'
+    Distance = 'Distance'
     Output='Output'
 
     def __init__(self):
         super().__init__()
 
     def name(self):
-        return "Distance Along Centerline"
+        return "Transects By Distance"
 
     def tr(self, text):
-        return QCoreApplication.translate("Distance Along Centerline", text)
+        return QCoreApplication.translate("Transects By Distance", text)
 
     def displayName(self):
-        return self.tr("Distance Along Centerline")
+        return self.tr("Transects By Distance")
 
     def group(self):
         return self.tr("Line Tools")
 
     def shortHelpString(self):
-        return self.tr('''Calculate the the distance (Distance), reverse distance (RDistance), shortest path distance (SP_Dist) and reverse shortest path distance (SP_RDist) from the centerline(s) startpoint. 'Explode lines' option will split the line at each vertex. Use the 'Vertex Density' option to split the centerline at a given distance. \n For more options refer to the tortuosity and shortest pathway tools found in the NetworkGT plugin.''')
+        return self.tr('''Transects by distance will define perpendicular transects along a centerline at a given distance. 'Transect Width' will define the length of each of the perpendicular transects. 'Sampling Distance' will specify the distance at which to create transects. Use the 'Vertex Density' option to add vertices along the centerline and thus increase the accuracy of the sampling distance at the cost of performance.''')
 
     def groupId(self):
         return "Line Tools"
@@ -69,37 +70,47 @@ class centDist(QgsProcessingAlgorithm):
             [QgsProcessing.TypeVectorLine]))
 
         self.addParameter(QgsProcessingParameterNumber(
+            self.Distance,
+            self.tr("Transect Width"),
+            QgsProcessingParameterNumber.Double,
+            100.0))
+
+        self.addParameter(QgsProcessingParameterNumber(
+            self.Samples,
+            self.tr("Sampling Distance"),
+            QgsProcessingParameterNumber.Double,
+            100.0))
+
+        self.addParameter(QgsProcessingParameterNumber(
             self.Densify,
             self.tr("Vertex Density"),
             QgsProcessingParameterNumber.Double,
             0.0, minValue = 0.0))
 
-        self.addParameter(QgsProcessingParameterBoolean(self.explode,
-                    self.tr("Explode Lines"),False))
-
         self.addParameter(QgsProcessingParameterFeatureSink(
             self.Output,
-            self.tr("Centerline Distance"),
+            self.tr("Transects"),
             QgsProcessing.TypeVectorLine))
 
 
     def processAlgorithm(self, parameters, context, feedback):
 
         layer = self.parameterAsVectorLayer(parameters, self.Centerlines, context)
-        explode = parameters[self.explode]
+        Distance = parameters[self.Distance]
+        samples = parameters[self.Samples]
         densify = parameters[self.Densify]
 
         fet = QgsFeature()
         fs = QgsFields()
-        field_names = ['ID','Distance','RDistance','SP_Dist','SP_RDist']
+
+        field_check = layer.fields().indexFromName('Distance')
 
         fields = layer.fields()
         for field in fields:
-            if field.name() not in field_names:
-                fs.append(QgsField(field.name(),field.type()))
+            fs.append(QgsField(field.name(),field.type()))
 
-        for field in field_names:
-            fs.append(QgsField(field,6))
+        if field_check == -1:
+            fs.append(QgsField('Distance',6))
 
         (writer, dest_id) = self.parameterAsSink(parameters, self.Output, context,
                                                fs, QgsWkbTypes.LineString, layer.sourceCrs())
@@ -111,12 +122,10 @@ class centDist(QgsProcessingAlgorithm):
             params = {'INPUT':layer, 'INTERVAL':densify,'OUTPUT':'memory:'}
             out = st.run("native:densifygeometriesgivenaninterval",params,context=context,feedback=None)
             layer = out['OUTPUT']
-            explode = True
 
-        if explode:
-            params  = {'INPUT':layer,'OUTPUT':'memory:'}
-            explode = st.run("native:explodelines",params,context=context,feedback=feedback)
-            layer = explode['OUTPUT']
+        params  = {'INPUT':layer,'OUTPUT':'memory:'}
+        explode = st.run("native:explodelines",params,context=context,feedback=None)
+        layer = explode['OUTPUT']
 
         total = 100.0/layer.featureCount()
         W = False
@@ -131,55 +140,91 @@ class centDist(QgsProcessingAlgorithm):
                 else:
                     geom = geom.asPolyline()
 
-                rows = []
+                rows = {}
                 for field in fields:
-                    if field.name() not in field_names:
-                        rows.append(feature[field.name()])
+                    rows[field.name()] = feature[field.name()]
 
                 start,end = geom[0],geom[-1]
                 startx,starty = start
                 endx,endy = end
-                Graph.add_edge((startx,starty),(endx,endy),weight=feature.geometry().length(),rows=rows,feat=feature.geometry())
+                Graph.add_edge((startx,starty),(endx,endy),weight=feature.geometry().length(),rows=rows)
 
             except Exception as e:
                 feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
         if W:
             feedback.reportError(QCoreApplication.translate('Error','Multipart polylines are not supported'))
 
-        feedback.pushInfo(QCoreApplication.translate('Update','Calculating Centerlines Distances'))
+        feedback.pushInfo(QCoreApplication.translate('Update','Calculating Transects'))
+        Counter = 0
+        for G in list(nx.connected_component_subgraphs(Graph)):
+            v = 0
+            if field_check != -1:
+                for edge in G.edges(data=True):
+                    values = edge[2]['rows']
+                    v2 = values['Distance']
+                    if v2 > v:
+                        v = v2
+                        source = edge[0]
+            else:
+                source = list(G.nodes())[0]
 
-        for enum,G in enumerate(list(nx.connected_component_subgraphs(Graph))):
-            source = list(G.nodes())[0]
+            for n in range(2):
+                length,path = nx.single_source_dijkstra(G,source,weight='weight')
+                Index = max(length,key=length.get)
+                source = path[Index][-1]
 
-            length,path = nx.single_source_dijkstra(G,source,weight='weight')
-            Index = max(length,key=length.get)
-            source = path[Index][-1]
+            Counter = 0
+            Limit = float(samples)
 
-            length,path = nx.single_source_dijkstra(G,source,weight='weight')
+            start, midx = None,None
+            for p in path[Index]:
+                if start == None:
+                    start = p
+                    midx,midy = p
+                    continue
 
-            Index = max(length,key=length.get)
-            source = path[Index][-1]
+                if midx == None:
+                    midx,midy = p
 
-            length2,path2 = nx.single_source_dijkstra(G,source,weight='weight')
+                startx,starty = start
+                endx,endy = p
 
-            for p in G.edges(data=True):
-                dx = path[Index][0][0] - p[1][0]
-                dy =  path[Index][0][1] - p[1][1]
-                dx2 = path[Index][0][0] - p[0][0]
-                dy2 =  path[Index][0][1] - p[0][1]
-                SP = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
+                dx = startx - endx
+                dy =  starty - endy
+                L = math.sqrt((dx**2)+(dy**2))
 
-                dx = path[Index][-1][0] - p[1][0]
-                dy =  path[Index][-1][1] - p[1][1]
-                dx2 = path[Index][-1][0] - p[0][0]
-                dy2 =  path[Index][-1][1] - p[0][1]
-                SP2 = max([math.sqrt((dx**2)+(dy**2)),math.sqrt((dx2**2)+(dy2**2))])
+                if samples > 0:
+                    Counter += L
 
-                D = max([length[(p[0][0],p[0][1])],length[(p[1][0],p[1][1])]])
-                D2= max([length2[(p[0][0],p[0][1])],length2[(p[1][0],p[1][1])]])
+                    if Counter < Limit:
+                        start = p
+                        continue
 
-                rows,geom = p[2]['rows'],p[2]['feat']
-                rows.extend([enum,D,D2,SP,SP2])
+                if midx==endx: #if vertical
+                    x1,y1 = endx + Distance,endy
+                    x2,y2 = endx - Distance,endy
+                else:
+                    m = ((midy - endy)/(midx - endx)) #Slope
+                    angle = degrees(atan(m)) + 90
+
+                    m = tan(radians(angle))
+                    c,s = (1/sqrt(1+m**2),m/sqrt(1+m**2))
+                    x1,y1 = (endx + Distance*(c),endy + Distance*(s))
+                    x2,y2 = (endx - Distance*(c),endy - Distance*(s))
+
+                Counter -= samples
+
+                geom = QgsGeometry.fromPolylineXY([QgsPointXY(x1,y1),QgsPointXY(x2,y2)])
+
+                data = G.get_edge_data((startx,starty), (endx,endy))
+
+                rows = list(data['rows'].values())
+                if field_check == -1:
+                    D = max([length[(startx,starty)],length[(endx,endy)]])
+                    rows.append(D)
+
+                midx = None
+                start = p
 
                 fet.setGeometry(geom)
                 fet.setAttributes(rows)

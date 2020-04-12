@@ -42,6 +42,10 @@ from .Shape_Analysis import Shape
 from .mergeLines import mergeLines
 from .Sinuosity import Sinuosity
 from .Centerline_Lengths import centDist
+from .Transects import Transects
+from .Sample_Transects import sampleTransects
+from .Thresholding import Thresholding
+from .Skeletonize import Skeletonize
 
 
 class GeometricAttributesProvider(QgsProcessingProvider):
@@ -72,6 +76,10 @@ class GeometricAttributesProvider(QgsProcessingProvider):
         self.addAlgorithm(mergeLines())
         self.addAlgorithm(Sinuosity())
         self.addAlgorithm(centDist())
+        self.addAlgorithm(Transects())
+        self.addAlgorithm(sampleTransects())
+        self.addAlgorithm(Thresholding())
+        self.addAlgorithm(Skeletonize())
 
     def id(self):
         """

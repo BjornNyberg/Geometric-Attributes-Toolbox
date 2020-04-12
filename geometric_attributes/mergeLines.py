@@ -38,13 +38,13 @@ class mergeLines(QgsProcessingAlgorithm):
         return self.tr("Merge Linestrings")
 
     def group(self):
-        return self.tr("Algorithms")
+        return self.tr("Line Tools")
 
     def shortHelpString(self):
         return self.tr('''Merge singlepart linestring geometries into a single oriented polyline if two endpoints are identical. The tool will split lines at intersections that contain more than two endpoints and calculate the statistics of each float attribute in the new line output.\n **Note** - The tool will simplify the line geometry between start and endpoint - Use 'Explode Lines Tool' to maintain geometries. \n For additional topological editing visit the NetworkGT plugin.''')
 
     def groupId(self):
-        return "Algorithms"
+        return "Line Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
@@ -93,13 +93,17 @@ class mergeLines(QgsProcessingAlgorithm):
 
         total = layer.featureCount()
         total = 100.0/total
-
+        W = False
         for enum,feature in enumerate(layer.getFeatures(QgsFeatureRequest())):
             try:
                 if total != -1:
                     feedback.setProgress(int(enum*total))
-
-                geom = feature.geometry().asPolyline()
+                geom = feature.geometry()
+                if geom.isMultipart():
+                    geom = geom.asMultiPolyline()[0]
+                    W = True
+                else:
+                    geom = geom.asPolyline()
 
                 start,end = geom[0],geom[-1]
                 startx,starty=start
@@ -128,7 +132,12 @@ class mergeLines(QgsProcessingAlgorithm):
         features = layer.getFeatures(QgsFeatureRequest())
         for enum,feature in enumerate(features):
             try:
-                geom = feature.geometry().asPolyline()
+                geom = feature.geometry()
+                if geom.isMultipart():
+                    geom = geom.asMultiPolyline()[0]
+                    W = True
+                else:
+                    geom = geom.asPolyline()
                 if total != -1:
                     feedback.setProgress(int(enum*total))
 
@@ -155,9 +164,12 @@ class mergeLines(QgsProcessingAlgorithm):
                 feedback.pushInfo(QCoreApplication.translate('Create Lines','%s'%(e)))
                 break
 
+        if W:
+            feedback.reportError(QCoreApplication.translate('Node Error','Warning: Multipart polylines are not supported'))
+
         enum = 0
         Graph2 = []
-        polyline, data= [],[]
+        polyline, data = [],[]
         if len(G) > 0:
             total = 100.0/len(G)
 

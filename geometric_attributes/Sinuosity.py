@@ -46,13 +46,13 @@ class Sinuosity(QgsProcessingAlgorithm):
         return self.tr("Sinuosity")
 
     def group(self):
-        return self.tr("Algorithms")
+        return self.tr("Line Tools")
 
     def shortHelpString(self):
         return self.tr('''Calculate sinuosity of a line as feature length / shortest path distance.''')
 
     def groupId(self):
-        return "Algorithms"
+        return "Line Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
@@ -79,11 +79,13 @@ class Sinuosity(QgsProcessingAlgorithm):
             pr.addAttributes([QgsField("Sinuosity", QVariant.Double)])
             layer.updateFields()
 
+        W = False
         layer.startEditing()
         for feature in layer.getFeatures():
             geom = feature.geometry()
             if geom.isMultipart():
                 geom = geom.asMultiPolyline()[0]
+                W = True
             else:
                 geom = geom.asPolyline()
 
@@ -99,5 +101,8 @@ class Sinuosity(QgsProcessingAlgorithm):
             feature['Sinuosity'] = s
             layer.updateFeature(feature)
         layer.commitChanges()
+
+        if W:
+            feedback.reportError(QCoreApplication.translate('Node Error','Warning: Multipart polylines are not supported'))
 
         return {}

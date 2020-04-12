@@ -49,13 +49,14 @@ class GA(QgsProcessingAlgorithm):
         return self.tr("Geometric Attributes")
 
     def group(self):
-        return self.tr("Algorithms")
+        return self.tr("Polygon Tools")
 
     def shortHelpString(self):
-        return self.tr("Calculate geometric attributes of width and centerline deviation along a centerline of a polygon. Make sure to use the 'Explode Tool' prior to executing the tool for MultiLineString geometries.")
+        return self.tr('''Calculate geometric attributes of width and centerline deviation along a centerline of a polygon. Make sure to use the 'Explode Tool' prior to executing the tool for MultiLineString geometries. \n
+        Inputs -  'Samples' is the number of width measurements to take for a given centerline taken as centerline length / number of samples. If 'sample by distance' is selected, width measurement are taken along a centerline if the distance exceeds the given 'Samples' number. Keep 'Samples' equal to 0 to take width measurements at each vertex.''')
 
     def groupId(self):
-        return "Algorithms"
+        return "Polygon Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
@@ -78,7 +79,7 @@ class GA(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber.Double,
             100.0))
         self.addParameter(QgsProcessingParameterBoolean(self.Distance,
-                    self.tr("Sample by distance"),False))
+                    self.tr("Sample By Distance"),False))
         self.addParameter(QgsProcessingParameterBoolean(self.FC,
                     self.tr("Fast Compute"),False))
         self.addParameter(QgsProcessingParameterFeatureSink(
