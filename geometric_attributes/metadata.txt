@@ -6,7 +6,7 @@
 name=Geometric Attributes
 qgisMinimumVersion=3.4
 description=Analyze geometric attributes along a centerline.
-version=0.4
+version=0.3
 author=Bjorn Nyberg
 email=bjorn.nyberg@uib.no
 
@@ -20,7 +20,7 @@ repository=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/tree/mast
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog= Version 0.4 - 12/04/2020
+changelog= Version 0.3 - 12/04/2020
 	- Added raster thresholding
 	- Added skeletonize
 	- Added transect by distance
