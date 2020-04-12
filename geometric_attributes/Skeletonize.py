@@ -91,11 +91,11 @@ class Skeletonize(QgsProcessingAlgorithm):
         yres = rlayer.rasterUnitsPerPixelY()
 
         img = imread(raster)
-        # stats = dp.bandStatistics(1,QgsRasterBandStats.All,rect,0)
+        stats = dp.bandStatistics(1,QgsRasterBandStats.All,rect,0)
 
-        # if dp.bandCount() != 1 or stats.maximumValue > 1:
-        #     feedback.reportError(QCoreApplication.translate('Error','Tool requires a binary raster input - please run the Thresholding tool prior to calculating centerlines.'))
-        #     return {}
+        if dp.bandCount() != 1 or stats.maximumValue > 1:
+            feedback.reportError(QCoreApplication.translate('Error','Tool requires a binary raster input - please run the Thresholding tool prior to calculating centerlines.'))
+            return {}
 
         nrows,ncols = img.shape
 
