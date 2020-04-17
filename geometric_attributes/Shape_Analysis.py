@@ -19,10 +19,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
-import processing as st
-import networkx as nx
-from scipy import stats
-from math import fabs
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import (QgsVectorLayer, QgsSpatialIndex, QgsField,QgsVectorFileWriter,QgsProcessingParameterBoolean, QgsProcessingParameterField, QgsFeature, QgsPointXY, QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessing,QgsWkbTypes, QgsGeometry, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSource, QgsProcessingParameterFeatureSink,QgsFeatureSink,QgsFeatureRequest,QgsFields,QgsProperty)
 
@@ -77,6 +73,17 @@ class Shape(QgsProcessingAlgorithm):
             QgsProcessing.TypeVectorPolygon))
 
     def processAlgorithm(self, parameters, context, feedback):
+
+        try:
+            import processing as st
+            import networkx as nx
+            from scipy import stats
+            from math import fabs
+        except Exception as e:
+            feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+            feedback.reportError(QCoreApplication.translate('Error',' '))
+            feedback.reportError(QCoreApplication.translate('Error','Error loading modules - please install the necessary python module'))
+            return {}
 
         layer = self.parameterAsVectorLayer(parameters, self.Width, context)
         layer2 = self.parameterAsVectorLayer(parameters, self.Polygons, context)

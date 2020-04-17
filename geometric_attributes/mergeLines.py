@@ -68,8 +68,14 @@ class mergeLines(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
 
-        import networkx as nx
-        import numpy as np
+        try:            
+            import networkx as nx
+            import numpy as np
+        except Exception as e:
+            feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+            feedback.reportError(QCoreApplication.translate('Error',' '))
+            feedback.reportError(QCoreApplication.translate('Error','Error loading modules - please install the necessary python module'))
+            return {}
 
         layer = self.parameterAsLayer(parameters, self.Centerline, context)
         m = self.parameterAsInt(parameters, self.Method, context)

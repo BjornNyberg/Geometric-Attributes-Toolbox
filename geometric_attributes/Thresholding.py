@@ -26,6 +26,7 @@ class Thresholding(QgsProcessingAlgorithm):
     adaptMethod = 'Adaptive Method'
     outRaster = 'Output Raster'
     blur = 'Modal Blurring'
+    percent = 'Percent'
 
     def __init__(self):
         super().__init__()
@@ -43,7 +44,7 @@ class Thresholding(QgsProcessingAlgorithm):
         return self.tr("Raster Tools")
 
     def shortHelpString(self):
-        return self.tr('''Create a thresholded raster image based on a RGB or grayscale image. A thresholded image can be used to skeletonize a raster to create a centerline. \n
+        return self.tr('''Create a thresholded raster image based on a RGB or grayscale image. A thresholded image can be used to skeletonize a raster to create a centerline. Window Size refers to the grid size used to calculate the local threshold for the binary output and is required by the local otsu, adaptive, percentile, niblack and sauvola methods. \n
         Based on the scikit image package - more information available at https://scikit-image.org/docs/dev/auto_examples/applications/plot_thresholding.html''')
 
     def groupId(self):
@@ -61,25 +62,29 @@ class Thresholding(QgsProcessingAlgorithm):
             self.tr("Raster"), None, False))
 
         self.addParameter(QgsProcessingParameterEnum(self.Method,
-                                self.tr('Select Thresholding Method'), options=[self.tr("otsu"),self.tr("adaptive")],defaultValue=0))
+                                self.tr('Select Thresholding Method'), options=[self.tr("otsu"),self.tr("local_otsu"),self.tr("adaptive"),self.tr("percentile"),self.tr("niblack"),self.tr("sauvola")],defaultValue=0))
 
         self.addParameter(QgsProcessingParameterBoolean(self.inv, self.tr("Invert Image"),False))
 
         param1 = QgsProcessingParameterNumber(self.blocks,
-                                self.tr('Adaptive Threshold Block Size'), QgsProcessingParameterNumber.Double,0.0,minValue=0.0)
+                                self.tr('Window Size'), QgsProcessingParameterNumber.Double,0.0,minValue=0.0)
         param2 = QgsProcessingParameterEnum(self.adaptMethod,
                                 self.tr('Adaptive Method'), options=[self.tr("gaussian"),self.tr("mean"),self.tr("median")],defaultValue=0)
         param3 = QgsProcessingParameterNumber(self.blur,
                                 self.tr('Mode Blurring'), QgsProcessingParameterNumber.Double,1.0,minValue=0.0)
+        param4 = QgsProcessingParameterNumber(self.percent,
+                                self.tr('Percentile / niblack k Threshold'), QgsProcessingParameterNumber.Double,0.05,minValue=0.001)
 
         self.addParameter(QgsProcessingParameterRasterDestination(self.outRaster, self.tr("Output Raster"), None, False))
 
         param1.setFlags(param1.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         param2.setFlags(param2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         param3.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        param4.setFlags(param4.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
 
         self.addParameter(param1)
         self.addParameter(param2)
+        self.addParameter(param4)
         self.addParameter(param3)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -90,10 +95,10 @@ class Thresholding(QgsProcessingAlgorithm):
             from skimage.io import imread
             from skimage.io import imread
             from skimage.color import rgb2gray
-            from skimage.filters import threshold_local,threshold_otsu
+            from skimage.filters import threshold_local,threshold_otsu,threshold_niblack, threshold_sauvola
             from skimage.util import invert
             from skimage.morphology import disk
-            from skimage.filters.rank import modal
+            from skimage.filters.rank import modal, threshold_percentile, otsu
             from skimage.util import img_as_ubyte
 
         except Exception as e:
@@ -106,6 +111,7 @@ class Thresholding(QgsProcessingAlgorithm):
         inv = parameters[self.inv]
         block_size = parameters[self.blocks]
         adaptMethod = parameters[self.adaptMethod]
+        p = parameters[self.percent]
         mode = parameters[self.blur]
         method = parameters[self.Method]
 
@@ -122,10 +128,16 @@ class Thresholding(QgsProcessingAlgorithm):
 
         img = imread(raster)
 
-        if len(img.shape) == 3:
-            grayscale = rgb2gray(img)
-        else:
+        if dp.bandCount() == 1:
             grayscale = img
+        else:
+            try:
+                grayscale = rgb2gray(img)
+            except Exception as e:
+                feedback.reportError(QCoreApplication.translate('Error',str(e)))
+                feedback.reportError(QCoreApplication.translate('Error',' '))
+                feedback.reportError(QCoreApplication.translate('Error','Failed to convert image from RGB to grayscale'))
+                return {}
 
         if inv:
             grayscale = invert(grayscale)
@@ -134,16 +146,31 @@ class Thresholding(QgsProcessingAlgorithm):
         if method == 0:
             thresh = threshold_otsu(grayscale)
             binary = (grayscale < thresh).astype(float)
-        elif method == 1:
+        else:
             if block_size == 0.0:
                 block_size = int((nrows*0.01)*(ncols*0.01))
                 if block_size % 2 == 0:
                     block_size -= 1
-                feedback.pushInfo(QCoreApplication.translate('Info','Selecting a block size of %s for the adapative thresholding'%(block_size)))
-
-            local_thresh = threshold_local(image=grayscale, block_size=int(block_size), method=aMethod[adaptMethod])
-            binary = (grayscale < local_thresh).astype(float)
-
+                feedback.pushInfo(QCoreApplication.translate('Info','Automatically selecting a block size of %s'%(block_size)))
+            if block_size % 2 == 0:
+                block_size -= 1
+                feedback.reportError(QCoreApplication.translate('Info','Warning: Algorithm requires an odd value for the window size parameter - choosing %s'%(block_size)))
+            if method == 1:
+                grayscale = img_as_ubyte(grayscale)
+                thresh = otsu(grayscale,disk(block_size))
+                binary = (grayscale < thresh).astype(float)
+            if method == 2:
+                local_thresh = threshold_local(image=grayscale, block_size=int(block_size), method=aMethod[adaptMethod])
+                binary = (grayscale < local_thresh).astype(float)
+            elif method == 3:
+                thresh = threshold_percentile(grayscale,disk(int(block_size)),p0=p)
+                binary = (grayscale > thresh).astype(float)
+            elif method == 4:
+                thresh = threshold_niblack(grayscale,window_size=int(block_size),k=p)
+                binary = (grayscale > thresh).astype(float)
+            else:
+                thresh = threshold_sauvola(grayscale, window_size=int(block_size))
+                binary = (grayscale > thresh).astype(float)
         if mode > 0:
             binary = modal(binary, disk(mode))
             binary = (binary > 1).astype(float)

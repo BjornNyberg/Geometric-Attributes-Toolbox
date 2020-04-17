@@ -21,9 +21,8 @@ class Skeletonize(QgsProcessingAlgorithm):
 
     Centerlines = 'Centerlines'
     Raster = 'Raster'
+    inv = 'Invert Image'
     SkelMethod = 'Skeletonize Method'
-    distance = 'Simplify Distance'
-    sdistance = 'Short Isolated Fractures'
 
     def __init__(self):
         super().__init__()
@@ -56,6 +55,9 @@ class Skeletonize(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterRasterLayer(
             self.Raster,
             self.tr("Raster"), None, False))
+
+        self.addParameter(QgsProcessingParameterBoolean(self.inv, self.tr("Invert Image"),False))
+
         self.addParameter(QgsProcessingParameterVectorDestination(
             self.Centerlines,
             self.tr("Centerlines"),
@@ -71,6 +73,7 @@ class Skeletonize(QgsProcessingAlgorithm):
             from osgeo import gdal as osgdal
             from skimage.morphology import medial_axis, skeletonize
             from skimage.io import imread
+            from skimage.util import invert
         except Exception as e:
             feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
             feedback.reportError(QCoreApplication.translate('Error',' '))
@@ -79,6 +82,7 @@ class Skeletonize(QgsProcessingAlgorithm):
 
         rlayer = self.parameterAsRasterLayer(parameters, self.Raster, context)
         sMethod  = self.parameterAsInt(parameters, self.SkelMethod, context)
+        inv = parameters[self.inv]
 
         fname = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
 
@@ -98,6 +102,9 @@ class Skeletonize(QgsProcessingAlgorithm):
             return {}
 
         nrows,ncols = img.shape
+
+        if inv:
+            img = invert(img)
 
         if sMethod  == 0:
             skeleton = skeletonize(img, method='lee').astype(float)

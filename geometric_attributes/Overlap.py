@@ -19,10 +19,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
-
-import os
-import processing as st
-import networkx as nx
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import (QgsVectorLayer, QgsSpatialIndex, QgsField,QgsVectorFileWriter, QgsProcessingParameterField, QgsFeature, QgsPointXY, QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessing,QgsWkbTypes, QgsGeometry, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSource, QgsProcessingParameterFeatureSink,QgsFeatureSink,QgsFeatureRequest,QgsFields,QgsProperty)
 
@@ -75,6 +71,16 @@ class Overlap(QgsProcessingAlgorithm):
             QgsProcessing.TypeVectorPolygon))
 
     def processAlgorithm(self, parameters, context, feedback):
+
+        try:
+            import os
+            import processing as st
+            import networkx as nx
+        except Exception as e:
+            feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+            feedback.reportError(QCoreApplication.translate('Error',' '))
+            feedback.reportError(QCoreApplication.translate('Error','Error loading modules - please install the necessary python module'))
+            return {}
 
         layer = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         distance = parameters[self.Tolerance]

@@ -20,9 +20,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
-import os, sys, math, string, random,tempfile
-import processing as st
-import networkx as nx
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import *
 from itertools import combinations,chain
@@ -78,6 +75,16 @@ class sampleTransects(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
 
+        try:
+            import os, sys, math, string, random,tempfile
+            import processing as st
+            import networkx as nx
+        except Exception as e:
+            feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+            feedback.reportError(QCoreApplication.translate('Error',' '))
+            feedback.reportError(QCoreApplication.translate('Error','Error loading modules - please install the necessary python module'))
+            return {}
+
         layer = self.parameterAsVectorLayer(parameters, self.Centerlines, context)
         rlayer = self.parameterAsRasterLayer(parameters, self.Raster, context)
 
@@ -115,7 +122,7 @@ class sampleTransects(QgsProcessingAlgorithm):
                         rows.append(val)
                     else:
                         rows.append(-1)
-    
+
                 fet.setGeometry(geom)
                 fet.setAttributes(rows)
                 writer.addFeature(fet,QgsFeatureSink.FastInsert)
