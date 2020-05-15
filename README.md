@@ -2,7 +2,7 @@
 
 A set of tools for calculating the centerline, width, deviation, shape and adjacency of polygons. 
 
-A user guide, installation procedure and sample dataset is available [here](https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/tree/master/Datasets).
+A user guide, installation procedure and sample dataset is available [here](https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki).
  
 ### Citation
 
