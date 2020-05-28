@@ -163,7 +163,8 @@ class Transects(QgsProcessingAlgorithm):
 
         feedback.pushInfo(QCoreApplication.translate('Update','Calculating Transects'))
         Counter = 0
-        for G in list(nx.connected_component(Graph)):
+        for maxG in list(nx.connected_components(Graph)):
+            G = G.subgraph(maxG)
             v = 0
             if field_check != -1:
                 for edge in G.edges(data=True):

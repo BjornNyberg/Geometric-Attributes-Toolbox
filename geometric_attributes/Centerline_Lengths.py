@@ -156,7 +156,8 @@ class centDist(QgsProcessingAlgorithm):
 
         feedback.pushInfo(QCoreApplication.translate('Update','Calculating Centerlines Distances'))
 
-        for enum,G in enumerate(list(nx.connected_component(Graph))):
+        for enum,maxG in enumerate(list(nx.connected_components(Graph))):
+            G = Graph.subgraph(maxG)
             source = list(G.nodes())[0]
 
             length,path = nx.single_source_dijkstra(G,source,weight='weight')

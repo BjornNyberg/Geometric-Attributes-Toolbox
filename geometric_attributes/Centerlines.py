@@ -289,7 +289,8 @@ class Centerlines(QgsProcessingAlgorithm):
 
                 feedback.setProgress(int(enum*total))
                 G = edges[FID]
-                G=max(nx.connected_component(G), key=len) #Largest Connected Graph
+                maxG=max(nx.connected_components(G), key=len) #Largest Connected Graph
+                G = G.subgraph(maxG)
                 try:
                     if Threshold > 0 or tField:
                         if tField:
@@ -458,11 +459,10 @@ class Centerlines(QgsProcessingAlgorithm):
                             writer2.addFeature(fet2)
                             sx,sy = ex,ey
 
-                except Exception:
+                except Exception as e:
+                    feedback.reportError(QCoreApplication.translate('Update','%s'%(e)))
                     feedback.reportError(QCoreApplication.translate('Update','No centerline found for polygon ID %s - skipping' %(FID)))
                     continue
-                finally:
-                    G.clear()
 
 
         del writer2,edges

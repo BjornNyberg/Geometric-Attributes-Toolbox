@@ -205,12 +205,13 @@ class Connected(QgsProcessingAlgorithm):
                 feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
                 continue
 
-        subGraphs = nx.connected_component_subgraphs(G)
+        subGraphs = nx.connected_components(G)
 
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Layer'))
 
-        for enum,G in enumerate(subGraphs): #Update features
-            for node in G:
+        for enum,maxG in enumerate(subGraphs): #Update features
+            sG = G.subgraph(maxG)
+            for node in sG:
                 rows = [enum]
                 v = update[node]
                 rows.extend(v[:-1])
