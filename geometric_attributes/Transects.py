@@ -49,7 +49,7 @@ class Transects(QgsProcessingAlgorithm):
         return self.tr("Line Tools")
 
     def shortHelpString(self):
-        return self.tr('''Transects by distance will define perpendicular transects along a centerline at a given distance. 'Transect Width' will define the length of each of the perpendicular transects. 'Sampling Distance' will specify the distance at which to create transects. Use the 'Vertex Density' option to add vertices along the centerline and thus increase the accuracy of the sampling distance at the cost of performance.''')
+        return self.tr('''Transects by distance will define perpendicular transects along a centerline at a given distance. 'Transect Width' will define the length of each of the perpendicular transects. 'Sampling Distance' will specify the distance at which to create transects. Use the 'Vertex Density' option to add vertices along the centerline and thus increase the accuracy of the sampling distance at the cost of performance.\n Use the Help button for more information.''')
 
     def groupId(self):
         return "Line Tools"
@@ -163,7 +163,7 @@ class Transects(QgsProcessingAlgorithm):
 
         feedback.pushInfo(QCoreApplication.translate('Update','Calculating Transects'))
         Counter = 0
-        for G in list(nx.connected_component_subgraphs(Graph)):
+        for G in list(nx.connected_component(Graph)):
             v = 0
             if field_check != -1:
                 for edge in G.edges(data=True):

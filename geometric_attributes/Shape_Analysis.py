@@ -45,7 +45,7 @@ class Shape(QgsProcessingAlgorithm):
         return self.tr("Polygon Tools")
 
     def shortHelpString(self):
-        return self.tr("Calculate the shape of a polygon as crescentric, sinuous or ellipsoidal/rectangular with a symmetrical or asymmetrical shape.")
+        return self.tr("Calculate the shape of a polygon as crescentric, sinuous or ellipsoidal/rectangular with a symmetrical or asymmetrical shape.\n Use the Help button for more information.")
 
     def groupId(self):
         return "Polygon Tools"

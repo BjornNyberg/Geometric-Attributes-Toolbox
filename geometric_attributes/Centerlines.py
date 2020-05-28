@@ -20,25 +20,21 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
-"""
-***************************************************************************
-    Densify script based on DensifyGeometriesInterval.py by Anita Graser and
-    DensifyGeometries.py by Victor Olaya
-    ---------------------
-***************************************************************************
-"""
-
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.core import (QgsVectorLayer, QgsSpatialIndex,QgsProcessingParameterEnum, QgsField,QgsVectorFileWriter, QgsProcessingParameterBoolean, QgsFeature, QgsPointXY, QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessing,QgsWkbTypes, QgsGeometry, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSource, QgsProcessingParameterFeatureSink,QgsFeatureSink,QgsFeatureRequest,QgsFields,QgsProperty)
+from qgis.core import *
 from itertools import combinations,chain
-from math import sqrt
+from math import sqrt,fabs
 
 class Centerlines(QgsProcessingAlgorithm):
 
     Polygons='Polygons'
     Method='Method'
     Densify='Line Spacing'
+    Simplify = 'Simplify'
     T = 'Trim Iterations'
+    tField ='Trim Field'
+    dField ='Densify Field'
+    sField = 'Simplify Field'
     Output='Centerlines'
 
     def __init__(self):
@@ -57,11 +53,12 @@ class Centerlines(QgsProcessingAlgorithm):
         return self.tr("Polygon Tools")
 
     def shortHelpString(self):
-        return self.tr('''Calculate centerline(s) of each polygon. Available methods: 1. 'Centerlines' will calculate the shortest path between start and endpoint. 2. 'All' will calculate all shortest path(s)
-        between start and endpoint. 3. 'Circles' will calculate the all circles within a polygon. 4 'A number (e.g., 50)' will calculate all shortest path from all the start points generated after trimming
-        dangles by N iterations. Vertex spacing indicates the spacing of vertices along the polygon for creating the thiessen polygons. A lower vertex spacing will increase the accuracy for the centerline at
-        the cost of processing time.\n
-        Output will calculate the distance (Distance), reverse distance (RDistance), shortest path distance (SP_Dist) and reverse shortest path distance (SP_RDist) from the centerline(s) startpoint.''')
+        return self.tr('''Calculate centerline(s) of each polygon. Available methods: 1. 'Centerlines' will calculate the shortest path between start and endpoint. 2. 'All' will calculate all shortest path(s) between start and endpoint. 3. 'Circles' will calculate all circles (or loops) within a polygon.
+        Alternatively a number (e.g., 50) can be provided in the 'Trim Iterations' option which will calculate all shortest paths from all the start points generated after trimming dangles from the voronoi lines by N iterations.
+        Simplify Vertex Spacing will simplify the input polygon geometry by applying the Douglas-Peucker algorithm. A simplified polygon will reduce the accuracy for the centerline in favor of processing time. Densify Vertex Spacing will densify vertices along the input polygon geometry to create a more accurate centerline at the expensive of computational time. Hint - apply a simplify and densify option to produce a simplified and smoothed centerline representation.
+        Output will calculate the distance (Distance), reverse distance (RDistance), shortest path distance (SP_Dist) and reverse shortest path distance (SP_RDist) from the centerline(s) startpoint.
+        Use the Help button for more information.
+        ''')
 
     def groupId(self):
         return "Polygon Tools"
@@ -85,10 +82,30 @@ class Centerlines(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber.Double,
             0.0))
         self.addParameter(QgsProcessingParameterNumber(
-            self.Densify,
-            self.tr("Vertex Spacing"),
+            self.Simplify,
+            self.tr("Simplify Vertex Spacing"),
             QgsProcessingParameterNumber.Double,
-            0.0))
+            0.0,minValue=0.0,optional=True))
+        self.addParameter(QgsProcessingParameterNumber(
+            self.Densify,
+            self.tr("Densify Vertex Spacing"),
+            QgsProcessingParameterNumber.Double,
+            0.0,minValue=0.0,optional=True))
+        param1 = QgsProcessingParameterField(self.tField,
+                                self.tr('Trim Iterations By Field'), parentLayerParameterName=self.Polygons, type=QgsProcessingParameterField.Numeric, optional=True)
+        param2 = QgsProcessingParameterField(self.sField,
+                                self.tr('Simplify Vertex Spacing By Field'), parentLayerParameterName=self.Polygons, type=QgsProcessingParameterField.Numeric, optional=True)
+        param3 = QgsProcessingParameterField(self.dField,
+                                self.tr('Densify Vertex Spacing By Field'), parentLayerParameterName=self.Polygons, type=QgsProcessingParameterField.Numeric, optional=True)
+
+        param1.setFlags(param1.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        param2.setFlags(param2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        param3.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+
+        self.addParameter(param1)
+        self.addParameter(param2)
+        self.addParameter(param3)
+
         self.addParameter(QgsProcessingParameterFeatureSink(
             self.Output,
             self.tr("Centerlines"),
@@ -108,35 +125,21 @@ class Centerlines(QgsProcessingAlgorithm):
             return {}
 
         layer = self.parameterAsVectorLayer(parameters, self.Polygons, context)
+
+        if layer == None:
+            feedback.reportError(QCoreApplication.translate('Error','Do not use the "Selected features only" option when applying the algorithm to selected features'))
+            return {}
+
         aMethod = parameters[self.Method]
         Threshold = parameters[self.T]
+        tField = self.parameterAsString(parameters, self.tField, context)
+        sField = self.parameterAsString(parameters, self.sField, context)
+        dField = self.parameterAsString(parameters, self.dField, context)
+
         mDict = {0:"Centerlines",1:"All",2:"Circles"}
         Method = mDict[aMethod]
 
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
-
-        def densify(polyline, interval): #based on DensifyGeometriesInterval.py
-            output = []
-            for i in range(len(polyline) - 1):
-                p1 = polyline[i]
-                p2 = polyline[i + 1]
-                output.append(p1)
-
-                # Calculate necessary number of points between p1 and p2
-                pointsNumber = math.sqrt(p1.sqrDist(p2)) / interval
-                if pointsNumber > 1:
-                    multiplier = 1.0 / float(pointsNumber)
-                else:
-                    multiplier = 1
-                for j in range(int(pointsNumber)):
-                    delta = multiplier * (j + 1)
-                    x = p1.x() + delta * (p2.x() - p1.x())
-                    y = p1.y() + delta * (p2.y() - p1.y())
-                    output.append(QgsPointXY(x, y))
-                    if j + 1 == pointsNumber:
-                        break
-            output.append(polyline[len(polyline) - 1])
-            return output
 
         field_check =layer.fields().indexFromName('ID')
 
@@ -170,6 +173,7 @@ class Centerlines(QgsProcessingAlgorithm):
         fname = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
         infc = os.path.join(outDir,'%s.shp'%(fname))
         Densify_Interval = parameters[self.Densify]
+        s = parameters[self.Simplify]
 
         Precision,tol = 6, 1e-6
 
@@ -178,39 +182,56 @@ class Centerlines(QgsProcessingAlgorithm):
         fields.append(QgsField("ID", QVariant.Int))
         writer = QgsVectorFileWriter(infc, "CP1250", fields, QgsWkbTypes.Point, layer.sourceCrs(), "ESRI Shapefile") #.shp requirement of SAGA
 
-        feedback.pushInfo(QCoreApplication.translate('Update','Creating Vertices'))
-        total = 100.0/layer.featureCount()
+        features = layer.selectedFeatures()
+        total = layer.selectedFeatureCount()
+        if len(features) == 0:
+            features = layer.getFeatures()
+            total = layer.featureCount()
 
-        for enum,feature in enumerate(layer.getFeatures()):
+        total = 100.0/total
+
+        feedback.pushInfo(QCoreApplication.translate('Update','Creating Vertices'))
+        thresholds = {}
+
+        for enum,feature in enumerate(features):
             if total != -1:
                 feedback.setProgress(int(enum*total))
 
             geomType = feature.geometry()
+            if sField:
+                s = feature[sField]
+            if dField:
+                Densify_Interval = feature[dField]
+            if s:
+                if s > 0:
+                    geomType = geomType.simplify(s)
+            if Densify_Interval:
+                if Densify_Interval > 0:
+                    geomType = geomType.densifyByDistance(Densify_Interval)
+
+            ID = feature['ID']
             geom = []
             if geomType.wkbType() == QgsWkbTypes.Polygon:
                 polygon = geomType.asPolygon()
-                if Densify_Interval == 0 :
-                    geom = chain(*polygon)
-                else:
-                    for ring in polygon:
-                        geom.extend(densify(ring, Densify_Interval))
+                geom = chain(*polygon)
             else:
                 polygons = geomType.asMultiPolygon()
-                if Densify_Interval == 0 :
-                    geom = chain(*chain(*polygons))
-                else:
-                    for poly in polygons:
-                        p = []
-                        for ring in poly:
-                           p.extend(densify(ring, Densify_Interval))
-                        geom.extend(p)
+                geom = chain(*chain(*polygons))
+
             for points in geom:
                 if (round(points.x(),Precision),round(points.y(),Precision)) not in keepNodes:
                     pnt = QgsGeometry.fromPointXY(QgsPointXY(points.x(),points.y()))
                     fet.setGeometry(pnt)
-                    fet.setAttributes([feature['ID']])
+                    fet.setAttributes([ID])
                     writer.addFeature(fet)
                     keepNodes.update([(round(points.x(),Precision),round(points.y(),Precision))])
+            if tField:
+                tValue = feature[tField]
+                try:
+                    thresholds[ID] = int(tValue)
+                except Exception as e:
+                    feedback.reportError(QCoreApplication.translate('Error','Non-numeric value found in field for trim iteration function.'))
+                    return {}
 
         feedback.pushInfo(QCoreApplication.translate('Update','Creating Voronoi Polygons'))
         del writer
@@ -231,7 +252,7 @@ class Centerlines(QgsProcessingAlgorithm):
         param = {'INPUT':lines['OUTPUT'],'OUTPUT':'memory:'}
         exploded = st.run("native:explodelines",param,context=context,feedback=feedback)
         param = {'INPUT':exploded['OUTPUT'],'PREDICATE':6,'INTERSECT':layer,'METHOD':0}
-        st.run("native:selectbylocation",param,context=context,feedback=feedback)
+        st.run("native:selectbylocation",param,context=context,feedback=None)
         total = 100.0/exploded['OUTPUT'].selectedFeatureCount()
 
         for enum,feature in enumerate(exploded['OUTPUT'].selectedFeatures()):
@@ -268,10 +289,13 @@ class Centerlines(QgsProcessingAlgorithm):
 
                 feedback.setProgress(int(enum*total))
                 G = edges[FID]
-                G=max(nx.connected_component_subgraphs(G), key=len) #Largest Connected Graph
+                G=max(nx.connected_component(G), key=len) #Largest Connected Graph
                 try:
-                    if Threshold > 0:
-                        Threshold = int(Threshold)
+                    if Threshold > 0 or tField:
+                        if tField:
+                            Threshold = thresholds[FID]
+                        else:
+                            Threshold = int(Threshold)
                         G2 = G.copy()
                         G3 = G.copy()
                         for n in range(int(Threshold)):

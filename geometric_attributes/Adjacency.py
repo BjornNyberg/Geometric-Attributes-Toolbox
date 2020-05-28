@@ -48,7 +48,7 @@ class Connected(QgsProcessingAlgorithm):
         return self.tr("Polygon Tools")
 
     def shortHelpString(self):
-        return self.tr("Calculate adjacenct polygons and connected clusters. Tolerance specifies the distance by which to buffer each polygon to identify an adjacent polygon. An approximate perimeter shared between the polygons is taken as the perimenter of the overlapping area divided by two.")
+        return self.tr("Calculate adjacenct polygons and connected clusters. Tolerance specifies the distance by which to buffer each polygon to identify an adjacent polygon. An approximate perimeter shared between the polygons is taken as the perimenter of the overlapping area divided by two.\n Use the Help button for more information.")
 
     def groupId(self):
         return "Polygon Tools"

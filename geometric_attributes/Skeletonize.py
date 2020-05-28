@@ -40,7 +40,7 @@ class Skeletonize(QgsProcessingAlgorithm):
         return self.tr("Raster Tools")
 
     def shortHelpString(self):
-        return self.tr("Create centerlines from a raster image by skeletonizing a binary raster image.\n Based on the scikit image package - more information available at https://scikit-image.org/docs/dev/auto_examples/edges/plot_skeleton.html")
+        return self.tr("Create centerlines from a raster image by skeletonizing a binary raster image.\n Based on the scikit image package - more information available at https://scikit-image.org/docs/dev/auto_examples/edges/plot_skeleton.html. \n Use the Help button for more information.")
 
     def groupId(self):
         return "Raster Tools"

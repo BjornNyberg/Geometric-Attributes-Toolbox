@@ -44,7 +44,7 @@ class Overlap(QgsProcessingAlgorithm):
         return self.tr("Polygon Tools")
 
     def shortHelpString(self):
-        return self.tr("Create a topologically consistent feature class by remvoing the overlapping area of adjacent polygons within a given tolerance distance.")
+        return self.tr("Create a topologically consistent feature class by remvoing the overlapping area of adjacent polygons within a given tolerance distance.\n Use the Help button for more information.")
 
     def groupId(self):
         return "Polygon Tools"

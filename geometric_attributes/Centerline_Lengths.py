@@ -48,7 +48,8 @@ class centDist(QgsProcessingAlgorithm):
         return self.tr("Line Tools")
 
     def shortHelpString(self):
-        return self.tr('''Calculate the the distance (Distance), reverse distance (RDistance), shortest path distance (SP_Dist) and reverse shortest path distance (SP_RDist) from the centerline(s) startpoint. 'Explode lines' option will split the line at each vertex. Use the 'Vertex Density' option to split the centerline at a given distance. \n For more options refer to the tortuosity and shortest pathway tools found in the NetworkGT plugin.''')
+        return self.tr('''Calculate the the distance (Distance), reverse distance (RDistance), shortest path distance (SP_Dist) and reverse shortest path distance (SP_RDist) from the centerline(s) startpoint. 'Explode lines' option will split the line at each vertex. Use the 'Vertex Density' option to split the centerline at a given distance. \n For more options refer to the tortuosity and shortest pathway tools found in the NetworkGT plugin.
+        \n Use the Help button for more information.''')
 
     def groupId(self):
         return "Line Tools"
@@ -155,7 +156,7 @@ class centDist(QgsProcessingAlgorithm):
 
         feedback.pushInfo(QCoreApplication.translate('Update','Calculating Centerlines Distances'))
 
-        for enum,G in enumerate(list(nx.connected_component_subgraphs(Graph))):
+        for enum,G in enumerate(list(nx.connected_component(Graph))):
             source = list(G.nodes())[0]
 
             length,path = nx.single_source_dijkstra(G,source,weight='weight')

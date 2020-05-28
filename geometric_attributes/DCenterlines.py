@@ -50,7 +50,8 @@ class DCenterlines(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr('''The directional centerline script will reverse the distance field based on the proximity to another feature class line to indicate the start point of each centerline. \n
-        Alternatively, the algorithm will reverse and calculate the distance in relation to another centerline by assigning the start point of each centerline as the shortest Distance attribute to the Direction feature class.''')
+        Alternatively, the algorithm will reverse and calculate the distance in relation to another centerline by assigning the start point of each centerline as the shortest Distance attribute to the Direction feature class.
+        \n Use the Help button for more information.''')
 
     def groupId(self):
         return "Line Tools"

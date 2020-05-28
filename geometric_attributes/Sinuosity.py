@@ -45,7 +45,7 @@ class Sinuosity(QgsProcessingAlgorithm):
         return self.tr("Line Tools")
 
     def shortHelpString(self):
-        return self.tr('''Calculate sinuosity of a line as feature length / shortest path distance.''')
+        return self.tr('''Calculate sinuosity of a line as feature length / shortest path distance.\n Use the Help button for more information.''')
 
     def groupId(self):
         return "Line Tools"

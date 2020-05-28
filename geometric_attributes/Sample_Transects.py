@@ -47,7 +47,7 @@ class sampleTransects(QgsProcessingAlgorithm):
         return self.tr("Raster Tools")
 
     def shortHelpString(self):
-        return self.tr('''Sample Transects tool will sample the endpoint of each line corresponding to the Distance field used by the centerline creation tools.''')
+        return self.tr('''Sample Transects tool will sample the endpoint of each line corresponding to the Distance field used by the centerline creation tools.\n Use the Help button for more information''')
 
     def groupId(self):
         return "Raster Tools"

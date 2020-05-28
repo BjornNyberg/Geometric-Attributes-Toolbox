@@ -53,7 +53,8 @@ class GA(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr('''Calculate geometric attributes of width and centerline deviation along a centerline of a polygon. Make sure to use the 'Explode Tool' prior to executing the tool for MultiLineString geometries. \n
-        Inputs -  'Samples' is the number of width measurements to take for a given centerline taken as centerline length / number of samples. If 'sample by distance' is selected, width measurement are taken along a centerline if the distance exceeds the given 'Samples' number. Keep 'Samples' equal to 0 to take width measurements at each vertex.''')
+        Inputs -  'Samples' is the number of width measurements to take for a given centerline taken as centerline length / number of samples. If 'sample by distance' is selected, width measurement are taken along a centerline if the distance exceeds the given 'Samples' number. Keep 'Samples' equal to 0 to take width measurements at each vertex.
+        \n The fast compute option will define width as the distance from the Centerlines end vertex to the closest vertex that defines the polygon multipled by 2. \n Use the Help button for more information.''')
 
     def groupId(self):
         return "Polygon Tools"

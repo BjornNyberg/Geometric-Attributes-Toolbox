@@ -45,7 +45,7 @@ class Thresholding(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr('''Create a thresholded raster image based on a RGB or grayscale image. A thresholded image can be used to skeletonize a raster to create a centerline. Window Size refers to the grid size used to calculate the local threshold for the binary output and is required by the local otsu, adaptive, percentile, niblack and sauvola methods. \n
-        Based on the scikit image package - more information available at https://scikit-image.org/docs/dev/auto_examples/applications/plot_thresholding.html''')
+        Based on the scikit image package - more information available at https://scikit-image.org/docs/dev/auto_examples/applications/plot_thresholding.html. \n Use the Help button for more information.''')
 
     def groupId(self):
         return "Raster Tools"

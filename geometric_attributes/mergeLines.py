@@ -41,7 +41,7 @@ class mergeLines(QgsProcessingAlgorithm):
         return self.tr("Line Tools")
 
     def shortHelpString(self):
-        return self.tr('''Merge singlepart linestring geometries into a single oriented polyline if two endpoints are identical. The tool will split lines at intersections that contain more than two endpoints and calculate the statistics of each float attribute in the new line output.\n **Note** - The tool will simplify the line geometry between start and endpoint - Use 'Explode Lines Tool' to maintain geometries. \n For additional topological editing visit the NetworkGT plugin.''')
+        return self.tr('''Merge singlepart linestring geometries into a single oriented polyline if two endpoints are identical. The tool will split lines at intersections that contain more than two endpoints and calculate the statistics of each float attribute in the new line output.\n **Note** - The tool will simplify the line geometry between start and endpoint - Use 'Explode Lines Tool' to maintain geometries. \n For additional topological editing visit the NetworkGT plugin.\n Use the Help button for more information.''')
 
     def groupId(self):
         return "Line Tools"
@@ -68,7 +68,7 @@ class mergeLines(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
 
-        try:            
+        try:
             import networkx as nx
             import numpy as np
         except Exception as e:
