@@ -46,6 +46,7 @@ from .Transects import Transects
 from .Sample_Transects import sampleTransects
 from .Thresholding import Thresholding
 from .Skeletonize import Skeletonize
+from .Tortuosity import Tortuosity
 
 
 class GeometricAttributesProvider(QgsProcessingProvider):
@@ -80,6 +81,7 @@ class GeometricAttributesProvider(QgsProcessingProvider):
         self.addAlgorithm(sampleTransects())
         self.addAlgorithm(Thresholding())
         self.addAlgorithm(Skeletonize())
+        self.addAlgorithm(Tortuosity())
 
     def id(self):
         """
