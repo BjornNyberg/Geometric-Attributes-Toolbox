@@ -145,8 +145,8 @@ class centDist(QgsProcessingAlgorithm):
                         rows.append(feature[field.name()])
 
                 start,end = geom[0],geom[-1]
-                startx,starty = start
-                endx,endy = end
+                startx,starty = round(start[0],6),round(start[1],6)
+                endx,endy = round(end[0],6),round(end[1],6)
                 Graph.add_edge((startx,starty),(endx,endy),weight=feature.geometry().length(),rows=rows,feat=feature.geometry())
 
             except Exception as e:
