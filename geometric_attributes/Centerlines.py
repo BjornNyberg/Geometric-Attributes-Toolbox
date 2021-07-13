@@ -316,7 +316,7 @@ class Centerlines(QgsProcessingAlgorithm):
                         for source in endPoints:
                             length,path = nx.single_source_dijkstra(G3,source,weight='weight')
                             Index = max(length,key=length.get)
-                            G2.add_path(path[Index])
+                            nx.add_path(G2,path[Index])
 
                         del G3
 
@@ -369,7 +369,7 @@ class Centerlines(QgsProcessingAlgorithm):
                             Index = max(length,key=length.get)
                             source = path[Index][-1]
 
-                        G2.add_path(path[Index])
+                        nx.add_path(G2,path[Index])
 
                         source = list(G2.nodes())[0] #Get length along all paths
                         for n in range(2):
