@@ -239,7 +239,11 @@ class Centerlines(QgsProcessingAlgorithm):
         tempVP = os.path.join(outDir,'VL.shp') #.shp requirement of SAGA
 
         param = {'POINTS':infc,'POLYGONS':tempVP,'FRAME':10.0}
-        Voronoi = st.run("saga:thiessenpolygons",param,context=context,feedback=None)
+        try:
+            Voronoi = st.run("saga:thiessenpolygons",param,context=context,feedback=None)
+        except Exception:
+            Voronoi = st.run("sagang:thiessenpolygons", param, context=context, feedback=None)
+
 
         del keepNodes
         edges = {}
