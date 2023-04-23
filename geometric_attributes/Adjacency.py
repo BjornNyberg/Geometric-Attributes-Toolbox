@@ -23,13 +23,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 import os
 import processing as st
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.core import (QgsVectorLayer, QgsSpatialIndex, QgsField,QgsVectorFileWriter, QgsProcessingParameterField, QgsFeature, QgsPointXY, QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessing,QgsWkbTypes, QgsGeometry, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSource, QgsProcessingParameterFeatureSink,QgsFeatureSink,QgsFeatureRequest,QgsFields,QgsProperty)
+from qgis.core import (QgsVectorLayer, QgsSpatialIndex, QgsField,QgsVectorFileWriter, QgsProcessingParameterBoolean, QgsProcessingParameterField, QgsFeature, QgsPointXY, QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessing,QgsWkbTypes, QgsGeometry, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSource, QgsProcessingParameterFeatureSink,QgsFeatureSink,QgsFeatureRequest,QgsFields,QgsProperty)
 
 class Connected(QgsProcessingAlgorithm):
 
     Polygons='Polygons'
     Field = 'Field'
     Tolerance = 'Allowed Tolerance'
+    Perm = 'Perimeter'
     Output = 'Output'
 
     def __init__(self):
@@ -73,6 +74,8 @@ class Connected(QgsProcessingAlgorithm):
             self.tr("Tolerance"),
             QgsProcessingParameterNumber.Double,
             0.1))
+        self.addParameter(QgsProcessingParameterBoolean(self.Perm,
+                    self.tr("Calculated Shared Perimeter"),True))
         self.addParameter(QgsProcessingParameterFeatureSink(
             self.Output,
             self.tr("Output"),
@@ -91,6 +94,7 @@ class Connected(QgsProcessingAlgorithm):
         layer = self.parameterAsVectorLayer(parameters, self.Polygons, context)
         features = {f.id():f for f in layer.getFeatures()}
         selected = [f.id() for f in layer.selectedFeatures()]
+        p = parameters[self.Perm]
 
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
 
@@ -107,16 +111,18 @@ class Connected(QgsProcessingAlgorithm):
         names = set()
         update = {}
         skip = ['Connection','Adjacent','Perimeter','ORIG_FID']
-
-        for total,feature in enumerate(layer.getFeatures()): #Find unique values & Connection
-            try:
-                fName = str(feature[Class_Name]).replace(' ','')
-                names.add(fName[:10]) #Field name < 10 characters
-                if fName[:10] in skip:
-                    feedback.reportError(QCoreApplication.translate('Error','Attribute %s in %s field is a required field in resulting feature class - rename attribute or change field'% (fName[:10],Class_Name)))
-                    return {}
-            except Exception as e:
-                feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+        if p:
+            for total,feature in enumerate(layer.getFeatures()): #Find unique values & Connection
+                try:
+                    fName = str(feature[Class_Name]).replace(' ','')
+                    names.add(fName[:10]) #Field name < 10 characters
+                    if fName[:10] in skip:
+                        feedback.reportError(QCoreApplication.translate('Error','Attribute %s in %s field is a required field in resulting feature class - rename attribute or change field'% (fName[:10],Class_Name)))
+                        return {}
+                except Exception as e:
+                    feedback.reportError(QCoreApplication.translate('Error','%s'%(e)))
+        else:
+            total = layer.featureCount()
 
         fet = QgsFeature()
         fields = QgsFields()
@@ -145,7 +151,7 @@ class Connected(QgsProcessingAlgorithm):
         index = QgsSpatialIndex(layer.getFeatures())
         total = 100.0/float(total)
 
-        feedback.pushInfo(QCoreApplication.translate('Update','Calculating Shared Border Percentages'))
+        feedback.pushInfo(QCoreApplication.translate('Update','Calculating Shared Borders'))
         for enum,feature in enumerate(layer.getFeatures()): #Update features
             try:
                 if total != -1:
@@ -167,19 +173,19 @@ class Connected(QgsProcessingAlgorithm):
                             if FID in selected and feature.id() in selected: #Element to Element Connection
                                 G.add_edge(feature.id(),FID)
                                 Connected.append(str(FID))
-
-                            geom = curGeom.intersection(feat.geometry()) #Get geometry
-                            fName = str(feat[Class_Name]).replace(' ','')
-                            Class = fName[:10]
-                            try:
-                                if curGeom.overlaps(feat.geometry()):
-                                    length = geom.length()/2 #Estimate as half the perimeter of polygon
-                                    if length < 0:
-                                        length = 0.0
-                                    data[Class] += length
-                            except Exception as e:# No length? possible collapsed polygon/point
-                                feedback.pushInfo(QCoreApplication.translate('Update','%s'%(e)))
-                                continue
+                            if p:
+                                geom = curGeom.intersection(feat.geometry()) #Get geometry
+                                fName = str(feat[Class_Name]).replace(' ','')
+                                Class = fName[:10]
+                                try:
+                                    if curGeom.overlaps(feat.geometry()):
+                                        length = geom.length()/2 #Estimate as half the perimeter of polygon
+                                        if length < 0:
+                                            length = 0.0
+                                        data[Class] += length
+                                except Exception as e:# No length? possible collapsed polygon/point
+                                    feedback.pushInfo(QCoreApplication.translate('Update','%s'%(e)))
+                                    continue
 
                 G.add_edge(feature.id(),feature.id())
 
