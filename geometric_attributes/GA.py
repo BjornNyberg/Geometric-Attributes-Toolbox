@@ -106,7 +106,7 @@ class GA(QgsProcessingAlgorithm):
         if FC:
             field_names = ['Distance','SP_Dist','Width','Deviation','DWidthL','DWidthR']
         else:
-            field_names = ['Distance','SP_Dist','Width','Deviation','DWidthL','DWidthR','Diff']
+            field_names = ['Distance','SP_Dist','Width','Deviation','DWidthL','DWidthR','WidthL','WidthR','Diff']
 
         fields = QgsFields()
         fields.append( QgsField('ID', QVariant.Int ))
@@ -333,7 +333,7 @@ class GA(QgsProcessingAlgorithm):
                 else:
                     W = geom.length()
 
-                    rows = [curID,feature['Distance'],feature['SP_Dist'],W,DW,(W/2)+DW,-(W/2)+DW,(min(Widths)/max(Widths))*100]
+                    rows = [curID,feature['Distance'],feature['SP_Dist'],W,DW,(W/2)+DW,-(W/2)+DW,min(Widths),max(Widths),(min(Widths)/max(Widths))*100]
 
                 startx,starty = midx,midy
                 midx,midy = endx,endy
