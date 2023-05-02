@@ -47,6 +47,8 @@ from .Sample_Transects import sampleTransects
 from .Thresholding import Thresholding
 from .Skeletonize import Skeletonize
 from .Tortuosity import Tortuosity
+from .SAM import SAM
+from .configure import configureSAM
 
 
 class GeometricAttributesProvider(QgsProcessingProvider):
@@ -82,6 +84,8 @@ class GeometricAttributesProvider(QgsProcessingProvider):
         self.addAlgorithm(Thresholding())
         self.addAlgorithm(Skeletonize())
         self.addAlgorithm(Tortuosity())
+        self.addAlgorithm(SAM())
+        self.addAlgorithm(configureSAM())
 
     def id(self):
         """

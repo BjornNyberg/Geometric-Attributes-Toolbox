@@ -6,7 +6,7 @@
 name=Geometric Attributes
 qgisMinimumVersion=3.4
 description= A set of tools for calculating attributes along the centerline including width, deviation, transects, shape, sinuosity and adjacency. 
-version=0.3
+version=0.4
 author=Bjorn Nyberg
 email=bjorn.nyberg@uib.no
 
@@ -20,19 +20,11 @@ repository=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/tree/mast
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog= Version 0.3 - 12/04/2020
-	- Added raster thresholding
-	- Added skeletonize
-	- Added transect by distance
-	- Added sample transects
-	- Improved centerline method selection
-	- Fixed temporary folder location
-	- Added sinuosity
-	- Added calculate centerline distance
-	- Added merge linestring and calculate statistics
+changelog= Version 0.4 - 02/05/2023
+	- Added support for the segment anything model (SAM)
 
 # Tags are comma separated with spaces allowed
-tags=centerline, centreline, skeletonize, skeleton, medial axis, thresholding, threshold, transect, perpendicular, line sampling, width,geometric attributes,shape,topology,deviation,clusters,adjacency,sinuosity,distance,merge,roads, rivers
+tags= sam, segment anything model, centerline, centreline, skeletonize, skeleton, medial axis, thresholding, threshold, transect, perpendicular, line sampling, width,geometric attributes,shape,topology,deviation,clusters,adjacency,sinuosity,distance,merge,roads, rivers
 
 homepage=https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki
 category=Vector
