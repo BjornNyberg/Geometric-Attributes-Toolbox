@@ -22,19 +22,20 @@ class SAM(QgsProcessingAlgorithm):
     Raster = 'Raster'
     Mask = 'Mask'
     Polygons = 'Polygons'
+    ckpoint = 'Checkpoints'
     kX = 'kX'
     kY = 'Ky'
-    p1 = 'p1'
-    p2 = 'p2'
-    p3 = 'p3'
-    p4 = 'p4'
-    p5 = 'p5'
-    p6 = 'p6'
-    p7 = 'p7'
-    p8 = 'p8'
-    p9 = 'p9'
-    p10 = 'p10'
-    p12 = 'p12'
+    p1 = 'points_per_side'
+    p2 = 'points_per_batch'
+    p3 = 'pred_iou_thresh'
+    p4 = 'stability_score_thresh'
+    p5 = 'stability_score_offset'
+    p6 = 'box_nms_thresh'
+    p7 = 'crop_n_layers'
+    p8 = 'crop_nms_thresh'
+    p9 = 'crop_overlap_ratio'
+    p10 = 'crop_n_points_downscale_factor'
+    p12 = 'min_mask_region_area'
 
     def __init__(self):
         super().__init__()
@@ -58,6 +59,7 @@ class SAM(QgsProcessingAlgorithm):
 
           Image: 8 bit 3-Band (RGB) image to classify
           Kernel Size X/Y: Size of the eorsion (tiling) kernel in pixels
+          Checkpoint: Checkpoint file to use for classification.
 
 
           Advanced Parameters
@@ -94,6 +96,11 @@ class SAM(QgsProcessingAlgorithm):
     def createInstance(self):
         return type(self)()
 
+    def cValues(self):
+        dirname = os.path.dirname(__file__)  # directory to scripts
+        values = [p for p in os.listdir(dirname) if p.endswith('.pth')]
+        return values
+
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterRasterLayer(
             self.Raster,
@@ -107,6 +114,10 @@ class SAM(QgsProcessingAlgorithm):
         self.kY,self.tr("Kernel Size Y"),
         QgsProcessingParameterNumber.Integer,3,minValue=1))
 
+        self.addParameter(QgsProcessingParameterEnum(self.ckpoint,
+                                                     self.tr('Checkpoint File'),
+                                                     options=self.cValues(), defaultValue=0))
+
         self.addParameter(QgsProcessingParameterVectorDestination(
             self.Polygons,
             self.tr("Polygons"),
@@ -116,17 +127,17 @@ class SAM(QgsProcessingAlgorithm):
         self.Mask,
         self.tr("Image Mask"), None, False))
 
-        param1 = QgsProcessingParameterNumber(self.p1,self.tr("Points Per Side"),QgsProcessingParameterNumber.Integer,32,minValue=1)
-        param2 = QgsProcessingParameterNumber(self.p2,self.tr("Points Per Batch"),QgsProcessingParameterNumber.Integer,64,minValue=1.0)
-        param3 = QgsProcessingParameterNumber(self.p3,self.tr("Pred Iou Thresh"),QgsProcessingParameterNumber.Double,0.88,minValue=0.0,maxValue=1.0)
-        param4 = QgsProcessingParameterNumber(self.p4,self.tr("Stability Score Thresh"),QgsProcessingParameterNumber.Double,0.88,minValue=0.0,maxValue=1.0)
-        param5 = QgsProcessingParameterNumber(self.p5,self.tr("Stability Score Offset"),QgsProcessingParameterNumber.Double,1.0,minValue=0.0,maxValue=1.0)
-        param6 = QgsProcessingParameterNumber(self.p6,self.tr("Box Nms Thresh"),QgsProcessingParameterNumber.Double,0.7,minValue=0.0)
-        param7 = QgsProcessingParameterNumber(self.p7,self.tr("Crop N Layers"),QgsProcessingParameterNumber.Integer,0,minValue=0)
-        param8 = QgsProcessingParameterNumber(self.p8,self.tr("Crop Nms Thresh"),QgsProcessingParameterNumber.Double,0.7,minValue=0.0)
-        param9 = QgsProcessingParameterNumber(self.p9,self.tr("Crop Overlap Ratio"),QgsProcessingParameterNumber.Double,0.34,minValue=0.01)
-        param10 = QgsProcessingParameterNumber(self.p10,self.tr("Crop N Points Downscale Factor"),QgsProcessingParameterNumber.Integer,1,minValue=0)
-        param12 = QgsProcessingParameterNumber(self.p12,self.tr("Min Mask Region Area"),QgsProcessingParameterNumber.Integer,0,minValue=0)
+        param1 = QgsProcessingParameterNumber(self.p1,self.tr("Points Per Side"),QgsProcessingParameterNumber.Integer,None,minValue=1,optional=True)
+        param2 = QgsProcessingParameterNumber(self.p2,self.tr("Points Per Batch"),QgsProcessingParameterNumber.Integer,None,minValue=1.0,optional=True)
+        param3 = QgsProcessingParameterNumber(self.p3,self.tr("Pred Iou Thresh"),QgsProcessingParameterNumber.Double,None,minValue=0.0,maxValue=1.0,optional=True)
+        param4 = QgsProcessingParameterNumber(self.p4,self.tr("Stability Score Thresh"),QgsProcessingParameterNumber.Double,None,minValue=0.0,maxValue=1.0,optional=True)
+        param5 = QgsProcessingParameterNumber(self.p5,self.tr("Stability Score Offset"),QgsProcessingParameterNumber.Double,None,minValue=0.0,maxValue=1.0,optional=True)
+        param6 = QgsProcessingParameterNumber(self.p6,self.tr("Box Nms Thresh"),QgsProcessingParameterNumber.Double,None,minValue=0.0,optional=True)
+        param7 = QgsProcessingParameterNumber(self.p7,self.tr("Crop N Layers"),QgsProcessingParameterNumber.Integer,None,minValue=0,optional=True)
+        param8 = QgsProcessingParameterNumber(self.p8,self.tr("Crop Nms Thresh"),QgsProcessingParameterNumber.Double,None,minValue=0.0,optional=True)
+        param9 = QgsProcessingParameterNumber(self.p9,self.tr("Crop Overlap Ratio"),QgsProcessingParameterNumber.Double,None,minValue=0.01,optional=True)
+        param10 = QgsProcessingParameterNumber(self.p10,self.tr("Crop N Points Downscale Factor"),QgsProcessingParameterNumber.Integer,None,minValue=0,optional=True)
+        param12 = QgsProcessingParameterNumber(self.p12,self.tr("Min Mask Region Area"),QgsProcessingParameterNumber.Integer,None,minValue=0,optional=True)
 
         ## param11 - point_grids ## not implemented
 
@@ -167,15 +178,6 @@ class SAM(QgsProcessingAlgorithm):
             feedback.reportError(QCoreApplication.translate('Warning','Failed to load python modules for SAM predictions. Try using the configure tool or manually install the segment-geospatial package using pip install segment-geospatial. '))
             return {}
 
-        ##Get trained checkpoint from Geometric Attributes plugin folder
-        dirname = os.path.dirname(__file__)
-        checkpoint = os.path.join(dirname,'sam_vit_h_4b8939.pth')
-
-        if not os.path.exists(checkpoint): #Check if checkpoints file exists
-            feedback.reportError(QCoreApplication.translate('Warning','''Failed to find checkpoint dataset. Download checkpoint from
-            https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth and place the file within the Geometric Attributes plugin folder at ~QGIS3\profiles\default\python\plugins\geometric_attributes.'''))
-            return {}
-
         ##Get inputs and outputs
         rlayer = self.parameterAsRasterLayer(parameters, self.Raster, context)
         outputRaster = self.parameterAsOutputLayer(parameters, self.Mask, context)
@@ -190,11 +192,23 @@ class SAM(QgsProcessingAlgorithm):
             feedback.reportError(QCoreApplication.translate('Warning','Please save the vector layer as a geopackage (.gpkg) file.'))
             return {}
 
+        ##Get trained checkpoint file from Geometric Attributes plugin folder
+        checkpoints = self.cValues()
+        cName = checkpoints[parameters[self.ckpoint]]
+        dirname = os.path.dirname(__file__)
+        checkpoint = os.path.join(dirname,cName)
+
+        ##Get mode type
+        mt = {'sam_vit_h_4b8939.pth':'vit_h','sam_vit_l_0b3195.pth':'vit_l','sam_vit_b_01ec64.pth':'vit_b'}
+        m = mt[cName]
+
         ##Get advanced parameters
         params = {'points_per_side':parameters[self.p1],'points_per_batch':parameters[self.p2],'pred_iou_thresh':parameters[self.p3],
         'stability_score_thresh':parameters[self.p4],'stability_score_offset':parameters[self.p5],'box_nms_thresh':parameters[self.p6],
         'crop_n_layers':parameters[self.p7],'crop_nms_thresh':parameters[self.p8],'crop_overlap_ratio':parameters[self.p9],
         'crop_n_points_downscale_factor':parameters[self.p10],'min_mask_region_area':parameters[self.p12]}
+
+        params = {k:v for k,v in params.items() if v is not None} #Delete None values
 
         ##Get raster input data provider to check band count
         dp = rlayer.dataProvider()
@@ -213,18 +227,19 @@ class SAM(QgsProcessingAlgorithm):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         if device == 'cpu':
-            feedback.reportError(QCoreApplication.translate('Warning','WARNING! No GPU detected, reverting to CPU that may be slow...'))
+            feedback.reportError(QCoreApplication.translate('Warning','WARNING! No GPU detected, reverting to CPU which may be slow...'))
 
         ##Run SamGeo model
         sam = SamGeo(
             checkpoint=checkpoint,
-            model_type='vit_h',
+            model_type=m,
             device=device,
             erosion_kernel=(kX, kY),
             mask_multiplier=255,
             sam_kwargs=params,
         )
 
+        #Generate Mask
         sam.generate(inRaster, outputRaster)
 
         ##Export to Geopackage

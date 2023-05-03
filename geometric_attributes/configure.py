@@ -15,7 +15,7 @@ import os,sys, subprocess
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import *
 from qgis.utils import iface
-from PyQt5.QtWidgets import QMessageBox, QFileDialog,QInputDialog,QLineEdit
+from PyQt5.QtWidgets import QMessageBox,QComboBox
 
 class configureSAM(QgsProcessingAlgorithm):
 
@@ -36,9 +36,8 @@ class configureSAM(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr('''This script will attempt to install the dependencies required for the Segment Anything Model (SAM) tool for Windows users.
-        If the tool fails, manual installation will be required using 'python3 -m pip install segment-geospatial'. In addition, the SAM checkpoint file
-        will need to be downloaded from https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth and placed within the Geometric Attributes plugin folder
-        located at ~QGIS3\profiles\default\python\plugins\geometric_attributes.''')
+        If the tool fails, manual installation will be required using 'pip install segment-geospatial'. In addition, the SAM checkpoint files
+        will need to be downloaded and placed within the Geometric Attributes plugin.''')
 
     def groupId(self):
         return "Raster Tools"
@@ -85,25 +84,22 @@ class configureSAM(QgsProcessingAlgorithm):
                 return {}
 
         reply = QMessageBox.question(iface.mainWindow(), 'Install SAM Dependencies',
-                 'Attempting to download pre-trained SAM checkpoint file (~2.5gb). Note this may take some time and QGIS will not be responsive during the download! Do you wish to continue?', QMessageBox.Yes, QMessageBox.No)
+                 'Attempting to download pre-trained SAM checkpoint file (~4gb). Note this may take some time and QGIS will not be responsive during the download! Do you wish to continue?', QMessageBox.Yes, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
             try:
-                import requests
-                url = 'https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth'
-                dirname = os.path.dirname(__file__)
-                outName = os.path.join(dirname, 'sam_vit_h_4b8939.pth')
-                with open(outName, "wb") as f:
-                    response = requests.get(url, stream=True)
-                    for data in response.iter_content(chunk_size=10000):
-                        f.write(data)
+                from samgeo import common
+                checkpoints = ['sam_vit_h_4b8939.pth','sam_vit_l_0b3195.pth','sam_vit_b_01ec64.pth']
+                for checkpoint in checkpoints:
+                    url = 'https://dl.fbaipublicfiles.com/segment_anything/{}'.format(checkpoint)
+                    dirname = os.path.dirname(__file__)
+                    outName = os.path.join(dirname, checkpoint)
+                    common.download_checkpoint(url,outName,overwrite=True,quiet=True)
             except Exception:
-                feedback.reportError(QCoreApplication.translate('Warning','''Failed to download checkpoint dataset. Consider downloading manually from
-                https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth and place the file within the Geometric Attributes plugin folder at at ~QGIS3\profiles\default\python\plugins\geometric_attributes.'''))
+                feedback.reportError(QCoreApplication.translate('Warning','''Failed to download {} dataset. Consider downloading manually and place the file within the Geometric Attributes plugin at ~QGIS3\profiles\default\python\plugins\geometric_attributes. Check the user guide for more information.'''.format(checkpoint)))
                 return {}
         else:
-            feedback.reportError(QCoreApplication.translate('Warning','''Consider downloading manually from
-            https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth and place the file within the Geometric Attributes plugin folder at at ~QGIS3\profiles\default\python\plugins\geometric_attributes.'''))
+            feedback.reportError(QCoreApplication.translate('Warning','''Consider downloading checkpoint files manually and place the file within the Geometric Attributes plugin at ~QGIS3\profiles\default\python\plugins\geometric_attributes. Check the user guide for more information.'''))
 
         return {}
 
