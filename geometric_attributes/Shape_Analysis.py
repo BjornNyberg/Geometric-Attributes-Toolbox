@@ -48,7 +48,7 @@ class Shape(QgsProcessingAlgorithm):
         return self.tr("Calculate the shape of a polygon as crescentric, sinuous or ellipsoidal/rectangular with a symmetrical or asymmetrical shape.\n Use the Help button for more information.")
 
     def groupId(self):
-        return "Polygon Tools"
+        return "2. Polygon Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

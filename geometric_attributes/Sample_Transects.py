@@ -50,7 +50,7 @@ class sampleTransects(QgsProcessingAlgorithm):
         return self.tr('''Sample Transects tool will sample the endpoint of each line corresponding to the Distance field used by the centerline creation tools.\n Use the Help button for more information''')
 
     def groupId(self):
-        return "Raster Tools"
+        return "3. Raster Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

@@ -32,18 +32,18 @@ class configureSAM(QgsProcessingAlgorithm):
         return self.tr("Configure Segment Anything Model (SAM)")
 
     def group(self):
-        return self.tr("Raster Tools")
+        return self.tr("Configure")
 
     def shortHelpString(self):
         return self.tr('''This script will attempt to install the dependencies required for the Segment Anything Model (SAM) tool for Windows users.
         If the tool fails, manual installation will be required using 'pip install segment-geospatial'. In addition, the SAM checkpoint files
         will need to be downloaded and placed within the Geometric Attributes plugin.''')
 
-    def groupId(self):
-        return "Raster Tools"
-
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
+
+    def groupId(self):
+        return "Configure"
 
     def createInstance(self):
         return type(self)()

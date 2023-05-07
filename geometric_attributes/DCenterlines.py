@@ -54,7 +54,7 @@ class DCenterlines(QgsProcessingAlgorithm):
         \n Use the Help button for more information.''')
 
     def groupId(self):
-        return "Line Tools"
+        return "1. Line Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

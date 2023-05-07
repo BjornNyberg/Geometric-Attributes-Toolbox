@@ -48,6 +48,7 @@ from .Thresholding import Thresholding
 from .Skeletonize import Skeletonize
 from .Tortuosity import Tortuosity
 from .SAM import SAM
+from .SAM_predictor import SAM_Pred
 from .configure import configureSAM
 
 
@@ -85,7 +86,9 @@ class GeometricAttributesProvider(QgsProcessingProvider):
         self.addAlgorithm(Skeletonize())
         self.addAlgorithm(Tortuosity())
         self.addAlgorithm(SAM())
+        self.addAlgorithm(SAM_Pred())
         self.addAlgorithm(configureSAM())
+
 
     def id(self):
         """

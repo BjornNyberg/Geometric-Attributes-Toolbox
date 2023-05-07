@@ -44,7 +44,7 @@ class Tortuosity(QgsProcessingAlgorithm):
         return self.tr("Measure the tortuosity or shorest pathways between source points and optional target locations. Input requires a linestring, a source point layer with a ID field and a corresponding target point layer with a ID field. If the 'Weight' option is supplied, the cost distance calculator will be weighted to the given field.")
 
     def groupId(self):
-        return "Line Tools"
+        return "1. Line Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

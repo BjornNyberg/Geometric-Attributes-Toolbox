@@ -48,7 +48,7 @@ class Thresholding(QgsProcessingAlgorithm):
         Based on the scikit image package - more information available at https://scikit-image.org/docs/dev/auto_examples/applications/plot_thresholding.html. \n Use the Help button for more information.''')
 
     def groupId(self):
-        return "Raster Tools"
+        return "3. Raster Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

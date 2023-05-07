@@ -57,7 +57,7 @@ class GA(QgsProcessingAlgorithm):
         \n The fast compute option will define width as the distance from the Centerlines end vertex to the closest vertex that defines the polygon multipled by 2. \n Use the Help button for more information.''')
 
     def groupId(self):
-        return "Polygon Tools"
+        return "2. Polygon Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

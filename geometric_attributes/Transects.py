@@ -52,7 +52,7 @@ class Transects(QgsProcessingAlgorithm):
         return self.tr('''Transects by distance will define perpendicular transects along a centerline at a given distance. 'Transect Width' will define the length of each of the perpendicular transects. 'Sampling Distance' will specify the distance at which to create transects. Use the 'Vertex Density' option to add vertices along the centerline and thus increase the accuracy of the sampling distance at the cost of performance.\n Use the Help button for more information.''')
 
     def groupId(self):
-        return "Line Tools"
+        return "1. Line Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

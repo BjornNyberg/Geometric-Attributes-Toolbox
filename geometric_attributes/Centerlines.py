@@ -61,7 +61,7 @@ class Centerlines(QgsProcessingAlgorithm):
         ''')
 
     def groupId(self):
-        return "Polygon Tools"
+        return "2. Polygon Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"

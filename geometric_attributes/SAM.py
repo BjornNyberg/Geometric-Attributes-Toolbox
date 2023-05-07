@@ -11,11 +11,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.'''
 
-import os,sys, subprocess
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+import os,sys
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import *
-from qgis.utils import iface
-from PyQt5.QtWidgets import QMessageBox, QFileDialog,QInputDialog,QLineEdit
 
 class SAM(QgsProcessingAlgorithm):
 
@@ -23,8 +21,7 @@ class SAM(QgsProcessingAlgorithm):
     Mask = 'Mask'
     Polygons = 'Polygons'
     ckpoint = 'Checkpoints'
-    kX = 'kX'
-    kY = 'Ky'
+    unique = 'unique'
     p1 = 'points_per_side'
     p2 = 'points_per_batch'
     p3 = 'pred_iou_thresh'
@@ -36,6 +33,8 @@ class SAM(QgsProcessingAlgorithm):
     p9 = 'crop_overlap_ratio'
     p10 = 'crop_n_points_downscale_factor'
     p12 = 'min_mask_region_area'
+    kX = 'kX'
+    kY = 'Ky'
 
     def __init__(self):
         super().__init__()
@@ -53,14 +52,15 @@ class SAM(QgsProcessingAlgorithm):
         return self.tr("Raster Tools")
 
     def shortHelpString(self):
-        return self.tr('''Warpper to the segment-geospatial python package for Meta's segment anything model (SAM). The script requires the installation of the segment-geospatial python package as well as downloading the SAM checkpoints - refer to the 'Configure' tool for more help.
+        return self.tr('''Meta's Segment Anything model that will classify objects automatically based on a series of points and parameters.
+
+          Warpper to the segment-geospatial python package, the script requires the installation of the segment-geospatial python package as well as downloading the SAM checkpoints - refer to the 'Configure' tool for more help.
 
           Parameters
 
           Image: 8 bit 3-Band (RGB) image to classify
-          Kernel Size X/Y: Size of the eorsion (tiling) kernel in pixels
           Checkpoint: Checkpoint file to use for classification.
-
+          Automatic Mask Generator: Generate unique output classifications.
 
           Advanced Parameters
 
@@ -85,10 +85,12 @@ class SAM(QgsProcessingAlgorithm):
 
           Crop N Points Downscale Factor: The number of points-per-side sampled in layer n is scaled down by 'crop n points downscale factor'**n.
 
-          Min Mask Region Area: If >0, postprocessing will be applied to remove disconnected regions and holes in masks with area smaller than min_mask_region_area. Requires opencv.''')
+          Min Mask Region Area: If >0, postprocessing will be applied to remove disconnected regions and holes in masks with area smaller than min_mask_region_area.
+
+          Kernel Size X/Y: Size of the eorsion kernel in pixels around each mask object.''')
 
     def groupId(self):
-        return "Raster Tools"
+        return "3. Raster Tools"
 
     def helpUrl(self):
         return "https://github.com/BjornNyberg/Geometric-Attributes-Toolbox/wiki"
@@ -106,17 +108,12 @@ class SAM(QgsProcessingAlgorithm):
             self.Raster,
             self.tr("Image"), None, False))
 
-        self.addParameter(QgsProcessingParameterNumber(
-        self.kX,self.tr("Kernel Size X"),
-        QgsProcessingParameterNumber.Integer,3,minValue=1))
-
-        self.addParameter(QgsProcessingParameterNumber(
-        self.kY,self.tr("Kernel Size Y"),
-        QgsProcessingParameterNumber.Integer,3,minValue=1))
-
         self.addParameter(QgsProcessingParameterEnum(self.ckpoint,
                                                      self.tr('Checkpoint File'),
                                                      options=self.cValues(), defaultValue=0))
+
+        self.addParameter(QgsProcessingParameterBoolean(self.unique,
+                    self.tr("Automatic Mask Generator"),False))
 
         self.addParameter(QgsProcessingParameterVectorDestination(
             self.Polygons,
@@ -138,6 +135,8 @@ class SAM(QgsProcessingAlgorithm):
         param9 = QgsProcessingParameterNumber(self.p9,self.tr("Crop Overlap Ratio"),QgsProcessingParameterNumber.Double,None,minValue=0.01,optional=True)
         param10 = QgsProcessingParameterNumber(self.p10,self.tr("Crop N Points Downscale Factor"),QgsProcessingParameterNumber.Integer,None,minValue=0,optional=True)
         param12 = QgsProcessingParameterNumber(self.p12,self.tr("Min Mask Region Area"),QgsProcessingParameterNumber.Integer,None,minValue=0,optional=True)
+        param13 = QgsProcessingParameterNumber(self.kX,self.tr("Kernel Size X"), QgsProcessingParameterNumber.Integer,3,minValue=1)
+        param14 = QgsProcessingParameterNumber(self.kY,self.tr("Kernel Size Y"), QgsProcessingParameterNumber.Integer,3,minValue=1)
 
         ## param11 - point_grids ## not implemented
 
@@ -152,6 +151,8 @@ class SAM(QgsProcessingAlgorithm):
         param9.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         param10.setFlags(param1.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         param12.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        param13.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        param14.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
 
         self.addParameter(param1)
         self.addParameter(param2)
@@ -164,6 +165,8 @@ class SAM(QgsProcessingAlgorithm):
         self.addParameter(param9)
         self.addParameter(param10)
         self.addParameter(param12)
+        self.addParameter(param13)
+        self.addParameter(param14)
 
     def processAlgorithm(self, parameters, context, feedback):
 
@@ -178,12 +181,13 @@ class SAM(QgsProcessingAlgorithm):
             feedback.reportError(QCoreApplication.translate('Warning','Failed to load python modules for SAM predictions. Try using the configure tool or manually install the segment-geospatial package using pip install segment-geospatial. '))
             return {}
 
-        ##Get inputs and outputs
+        ##Get inputs
         rlayer = self.parameterAsRasterLayer(parameters, self.Raster, context)
-        outputRaster = self.parameterAsOutputLayer(parameters, self.Mask, context)
-        outputVector = self.parameterAsOutputLayer(parameters, self.Polygons, context)
+        unique = parameters[self.unique]
         kX = parameters[self.kX]
         kY = parameters[self.kY]
+        outputRaster = self.parameterAsOutputLayer(parameters, self.Mask, context)
+        outputVector = self.parameterAsOutputLayer(parameters, self.Polygons, context)
 
         if '.tif' not in outputRaster: ##To do - add other formats
             feedback.reportError(QCoreApplication.translate('Warning','Please save the raster layer as a .tif file.'))
@@ -229,18 +233,32 @@ class SAM(QgsProcessingAlgorithm):
         if device == 'cpu':
             feedback.reportError(QCoreApplication.translate('Warning','WARNING! No GPU detected, reverting to CPU which may be slow...'))
 
+        ##Check if erosion_kernel is None
+        if kX == None or kY == None:
+            eK = None
+        else:
+            eK = (kX,kY)
+
         ##Run SamGeo model
         sam = SamGeo(
             checkpoint=checkpoint,
             model_type=m,
             device=device,
-            erosion_kernel=(kX, kY),
+            erosion_kernel=eK,
             mask_multiplier=255,
             sam_kwargs=params,
         )
 
-        #Generate Mask
-        sam.generate(inRaster, outputRaster)
+        if unique: #Automatic Mask Generator
+            #Generate Mask
+            sam.generate(source=inRaster,unique=True, batch=True)
+
+            ##Save masks
+            sam.save_masks(outputRaster,unique=True)
+
+        else: #Segment Anything
+            #Generate Mask
+            sam.generate(source=inRaster, output=outputRaster,batch=True)
 
         ##Export to Geopackage
         sam.tiff_to_gpkg(outputRaster, outputVector, simplify_tolerance=None)
