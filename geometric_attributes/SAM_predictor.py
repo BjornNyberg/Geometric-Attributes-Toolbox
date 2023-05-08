@@ -213,7 +213,23 @@ class SAM_Pred(QgsProcessingAlgorithm):
         predictor.masks_to_geotiff(inRaster, outputRaster, masks.astype("uint8"))
 
         ##Return Output to QGIS
+        self.Mask = outputRaster
         return {self.Mask:outputRaster}
+
+    def postProcessAlgorithm(self, context, feedback):
+        """
+        PostProcessing to define the Symbology
+        """
+        try:
+            output = QgsProcessingUtils.mapLayerFromString(self.Mask, context)
+            dirname = os.path.dirname(__file__)
+            path = os.path.join(dirname,'SAM_masks.qml')
+            output.loadNamedStyle(path)
+            output.triggerRepaint()
+
+        except Exception:
+            pass
+        return {}
 
 if __name__ == '__main__':
     pass

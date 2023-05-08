@@ -22,6 +22,7 @@ class SAM(QgsProcessingAlgorithm):
     Polygons = 'Polygons'
     ckpoint = 'Checkpoints'
     unique = 'unique'
+    batch = 'batch'
     p1 = 'points_per_side'
     p2 = 'points_per_batch'
     p3 = 'pred_iou_thresh'
@@ -61,6 +62,7 @@ class SAM(QgsProcessingAlgorithm):
           Image: 8 bit 3-Band (RGB) image to classify
           Checkpoint: Checkpoint file to use for classification.
           Automatic Mask Generator: Generate unique output classifications.
+          Batch Processing: Process image in batches (tiles) for better performance.
 
           Advanced Parameters
 
@@ -114,6 +116,9 @@ class SAM(QgsProcessingAlgorithm):
 
         self.addParameter(QgsProcessingParameterBoolean(self.unique,
                     self.tr("Automatic Mask Generator"),False))
+
+        self.addParameter(QgsProcessingParameterBoolean(self.batch,
+                    self.tr("Batch Processing"),False))
 
         self.addParameter(QgsProcessingParameterVectorDestination(
             self.Polygons,
@@ -184,6 +189,7 @@ class SAM(QgsProcessingAlgorithm):
         ##Get inputs
         rlayer = self.parameterAsRasterLayer(parameters, self.Raster, context)
         unique = parameters[self.unique]
+        batch = parameters[self.batch]
         kX = parameters[self.kX]
         kY = parameters[self.kY]
         outputRaster = self.parameterAsOutputLayer(parameters, self.Mask, context)
@@ -251,14 +257,14 @@ class SAM(QgsProcessingAlgorithm):
 
         if unique: #Automatic Mask Generator
             #Generate Mask
-            sam.generate(source=inRaster,unique=True, batch=True)
+            sam.generate(source=inRaster,unique=True,batch=batch)
 
             ##Save masks
             sam.save_masks(outputRaster,unique=True)
 
         else: #Segment Anything
             #Generate Mask
-            sam.generate(source=inRaster, output=outputRaster,batch=True)
+            sam.generate(source=inRaster, output=outputRaster,batch=batch)
 
         ##Export to Geopackage
         sam.tiff_to_gpkg(outputRaster, outputVector, simplify_tolerance=None)

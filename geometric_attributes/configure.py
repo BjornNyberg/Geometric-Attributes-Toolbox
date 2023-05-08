@@ -77,7 +77,7 @@ class configureSAM(QgsProcessingAlgorithm):
                             feedback.reportError(QCoreApplication.translate('Warning','Failed to install %s - consider installing manually'%(module)))
                     except Exception:
                         feedback.reportError(QCoreApplication.translate('Warning','Failed to install %s - consider installing manually'%(module)))
-                        continue
+                        return {}
 
             if os.name != 'nt':
                 feedback.reportError(QCoreApplication.translate('Warning','macOS and Linux users - manually install the segment-geospatial python package.'))
