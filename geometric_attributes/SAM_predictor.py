@@ -22,7 +22,6 @@ class SAM_Pred(QgsProcessingAlgorithm):
     Raster = 'Raster'
     Mask = 'Mask'
     Points = 'Points'
-    multiple = 'multiple'
     logits = 'logits'
     ckpoint = 'Checkpoints'
 
@@ -44,14 +43,11 @@ class SAM_Pred(QgsProcessingAlgorithm):
     def shortHelpString(self):
         return self.tr('''Meta's Segment Anything model that will classify objects based on a series of training points describing the foreground (1) and background (0).
 
-          Warpper to the segment-geospatial python package, the script requires the installation of the segment-geospatial python package as well as downloading the SAM checkpoints - refer to the 'Configure' tool for more help.
-
           Parameters
 
           Image: 8 bit 3-Band (RGB) image to classify
-          Training Points: Training points used to train the SAM model. Requires an "id" field with a 1 value that indicates a foreground, and a 0 value that indicates a background.
+          Training Points: Training points used to train the SAM model. Requires an "id" field with a 1 value that indicates a foreground, and a 0 value that indicates a background. If id field is not available all points will be given a value of 1.
           Checkpoint: Checkpoint file to use for classification.
-          Multiple: Create 3 bands showing the different confidence levels of the SAM prediction.
           Logits: Apply an extra iteration of logits to determine the final prediction.
 
           ''')
@@ -84,8 +80,8 @@ class SAM_Pred(QgsProcessingAlgorithm):
             self.tr("Training Points"),
             [QgsProcessing.TypeVectorPoint]))
 
-        self.addParameter(QgsProcessingParameterBoolean(self.multiple,
-                    self.tr("Multiple Mask Output"),False))
+        # self.addParameter(QgsProcessingParameterBoolean(self.multiple,
+        #             self.tr("Multiple Mask Output"),False))
 
         self.addParameter(QgsProcessingParameterBoolean(self.logits,
                     self.tr("Apply Logits"),False))
@@ -97,20 +93,12 @@ class SAM_Pred(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
 
-        def coords(gt,x,y):
-            c, a, b, f, d, e = gt
-            col = int((x - c) / a)
-            row = int((y - f) / e)
-            return (col,row)
-
         if float(sys.version[:3]) <= 3.7:
             feedback.reportError(QCoreApplication.translate('Warning',"Please install a newer version of QGIS as SAM requires python version 3.8=>"))
             return {}
 
         try: ##Imports
-            import cv2
-            from samgeo import SamGeo, SamGeoPredictor
-            from segment_anything import sam_model_registry
+            from samgeo import SamGeo
         except Exception as e:
             feedback.reportError(QCoreApplication.translate('Warning','Failed to load python modules for SAM predictions. Try using the configure tool or manually install the segment-geospatial package using pip install segment-geospatial. '))
             return {}
@@ -125,15 +113,9 @@ class SAM_Pred(QgsProcessingAlgorithm):
             feedback.reportError(QCoreApplication.translate('Error','Error! Raster image and training points do not have the same coordinate projection system.'))
             return {}
 
-        if 'EPSG:4326' not in str(rlayer.crs()): #TO DO remove and add support for multiple proejctions
-            feedback.reportError(QCoreApplication.translate('Error',str(rlayer.crs())))
-            feedback.reportError(QCoreApplication.translate('Error','Error! This tool is currently only supported for an EPS:4326 coordinate projection.'))
-            return {}
+        crs = str(rlayer.crs()).split(' ')[1][:-1] #TO DO cleanup
 
         field_check = vlayer.fields().indexFromName('id')
-        if field_check == -1:
-             feedback.reportError(QCoreApplication.translate('Error','Error! Training points do not have an "id" field for labelling outputs.'))
-             return {}
 
         if '.tif' not in outputRaster: ##To do - add other formats
             feedback.reportError(QCoreApplication.translate('Warning','Please save the raster layer as a .tif file.'))
@@ -144,7 +126,7 @@ class SAM_Pred(QgsProcessingAlgorithm):
         cName = checkpoints[parameters[self.ckpoint]]
         dirname = os.path.dirname(__file__)
         checkpoint = os.path.join(dirname,cName)
-        multiple = parameters[self.multiple]
+        ##multiple = parameters[self.multiple] ##TO DO - add multiple mask output
         logits = parameters[self.logits]
 
         ##Get mode type
@@ -167,69 +149,45 @@ class SAM_Pred(QgsProcessingAlgorithm):
         ##Get point data
         labels =  []
         points = []
-        layer = gdal.Open(inRaster)
-        gt = layer.GetGeoTransform()
 
         for feature in vlayer.getFeatures(QgsFeatureRequest()):
             geom = feature.geometry()
-            label = int(feature['id'])
-            if label not in [0,1]:
-                feedback.reportError(QCoreApplication.translate('Error','Error! Training data must have value of either 0 for background or 1 for foreground.'))
-                return {}
-            if QgsWkbTypes.isSingleType(geom.wkbType()):
-                x,y = geom.asPoint()
-                col,row = coords(gt,x,y)
-                labels.append(label)
-                points.append([col,row])
+            if field_check == -1:
+                label = 1
             else:
-                for x,y in geom.asMultiPoint(): #Check for multipart polyline
-                    col,row = coords(gt,x,y)
-                    labels.append(label)
-                    points.append([col,row])
+                label = int(feature['id'])
+                if label not in [0,1]: #If label is not 0 (background) or 1 (foreground), then return 1
+                    label = 1
 
-        labels = np.array(labels)
-        points = np.array(points)
+            if QgsWkbTypes.isSingleType(geom.wkbType()): #Check for multipart polyline
+                x,y = geom.asPoint()
+                labels.append(label)
+                points.append([x,y])
+            else:
+                for x,y in geom.asMultiPoint():
+                    labels.append(label)
+                    points.append([x,y])
 
         ##Load SamGeo Model
-        sam = sam_model_registry[m](checkpoint=checkpoint)
+        sam = SamGeo(
+                model_type=m,
+                checkpoint=checkpoint,
+                automatic=False,
+                sam_kwargs=None,
+            )
 
         ## Run SamGeoPredictor
-        predictor = SamGeoPredictor(sam)
-        img_arr = cv2.imread(inRaster)
-        predictor.set_image(img_arr)
-
-        ext = rlayer.extent()
-        x_min, x_max, y_min, y_max = ext.xMinimum(),ext.yMaximum(),ext.xMaximum(),ext.yMinimum()
-        box = [x_min,y_max,x_max,y_min]
+        sam.set_image(inRaster)
 
         if logits:
-            masks, scores ,logits = predictor.predict(src_fp=inRaster,geo_box=box,point_coords=points,point_labels=labels,multimask_output=True,return_logits=True)
+            masks, scores ,logits = sam.predict(src_fp=inRaster,point_coords=points,point_labels=labels,point_crs=crs,return_logits=True,return_results=True)
             mask_input = logits[np.argmax(scores), :, :]  # Choose the model's best mask
-            masks, _, _ = predictor.predict(src_fp=inRaster,geo_box=box,mask_input=mask_input[None, :, :],point_coords=points,point_labels=labels,multimask_output=multiple)
+            sam.predict(src_fp=inRaster,mask_input=mask_input[None, :, :],point_coords=points,point_labels=labels,point_crs=crs,output=outputRaster)
         else:
-            masks, _, _ = predictor.predict(src_fp=inRaster,point_coords=points,point_labels=labels,multimask_output=multiple,geo_box=box)
-
-        #Masks to geotiff
-        predictor.masks_to_geotiff(inRaster, outputRaster, masks.astype("uint8"))
+            sam.predict(src_fp=inRaster,point_coords=points,point_labels=labels,point_crs=crs,output=outputRaster)
 
         ##Return Output to QGIS
-        self.Mask = outputRaster
         return {self.Mask:outputRaster}
-
-    def postProcessAlgorithm(self, context, feedback):
-        """
-        PostProcessing to define the Symbology
-        """
-        try:
-            output = QgsProcessingUtils.mapLayerFromString(self.Mask, context)
-            dirname = os.path.dirname(__file__)
-            path = os.path.join(dirname,'SAM_masks.qml')
-            output.loadNamedStyle(path)
-            output.triggerRepaint()
-
-        except Exception:
-            pass
-        return {}
 
 if __name__ == '__main__':
     pass

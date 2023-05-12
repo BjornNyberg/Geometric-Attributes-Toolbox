@@ -34,8 +34,6 @@ class SAM(QgsProcessingAlgorithm):
     p9 = 'crop_overlap_ratio'
     p10 = 'crop_n_points_downscale_factor'
     p12 = 'min_mask_region_area'
-    kX = 'kX'
-    kY = 'Ky'
 
     def __init__(self):
         super().__init__()
@@ -87,9 +85,7 @@ class SAM(QgsProcessingAlgorithm):
 
           Crop N Points Downscale Factor: The number of points-per-side sampled in layer n is scaled down by 'crop n points downscale factor'**n.
 
-          Min Mask Region Area: If >0, postprocessing will be applied to remove disconnected regions and holes in masks with area smaller than min_mask_region_area.
-
-          Kernel Size X/Y: Size of the eorsion kernel in pixels around each mask object.''')
+          Min Mask Region Area: If >0, postprocessing will be applied to remove disconnected regions and holes in masks with area smaller than min_mask_region_area.''')
 
     def groupId(self):
         return "3. Raster Tools"
@@ -140,8 +136,6 @@ class SAM(QgsProcessingAlgorithm):
         param9 = QgsProcessingParameterNumber(self.p9,self.tr("Crop Overlap Ratio"),QgsProcessingParameterNumber.Double,None,minValue=0.01,optional=True)
         param10 = QgsProcessingParameterNumber(self.p10,self.tr("Crop N Points Downscale Factor"),QgsProcessingParameterNumber.Integer,None,minValue=0,optional=True)
         param12 = QgsProcessingParameterNumber(self.p12,self.tr("Min Mask Region Area"),QgsProcessingParameterNumber.Integer,None,minValue=0,optional=True)
-        param13 = QgsProcessingParameterNumber(self.kX,self.tr("Kernel Size X"), QgsProcessingParameterNumber.Integer,3,minValue=1)
-        param14 = QgsProcessingParameterNumber(self.kY,self.tr("Kernel Size Y"), QgsProcessingParameterNumber.Integer,3,minValue=1)
 
         ## param11 - point_grids ## not implemented
 
@@ -156,8 +150,6 @@ class SAM(QgsProcessingAlgorithm):
         param9.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         param10.setFlags(param1.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         param12.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        param13.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        param14.setFlags(param3.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
 
         self.addParameter(param1)
         self.addParameter(param2)
@@ -170,8 +162,6 @@ class SAM(QgsProcessingAlgorithm):
         self.addParameter(param9)
         self.addParameter(param10)
         self.addParameter(param12)
-        self.addParameter(param13)
-        self.addParameter(param14)
 
     def processAlgorithm(self, parameters, context, feedback):
 
@@ -190,8 +180,6 @@ class SAM(QgsProcessingAlgorithm):
         rlayer = self.parameterAsRasterLayer(parameters, self.Raster, context)
         unique = parameters[self.unique]
         batch = parameters[self.batch]
-        kX = parameters[self.kX]
-        kY = parameters[self.kY]
         outputRaster = self.parameterAsOutputLayer(parameters, self.Mask, context)
         outputVector = self.parameterAsOutputLayer(parameters, self.Polygons, context)
 
@@ -239,19 +227,12 @@ class SAM(QgsProcessingAlgorithm):
         if device == 'cpu':
             feedback.reportError(QCoreApplication.translate('Warning','WARNING! No GPU detected, reverting to CPU which may be slow...'))
 
-        ##Check if erosion_kernel is None
-        if kX == None or kY == None:
-            eK = None
-        else:
-            eK = (kX,kY)
-
         ##Run SamGeo model
         sam = SamGeo(
             checkpoint=checkpoint,
             model_type=m,
+            automatic=True,
             device=device,
-            erosion_kernel=eK,
-            mask_multiplier=255,
             sam_kwargs=params,
         )
 

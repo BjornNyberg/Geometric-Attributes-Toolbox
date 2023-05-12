@@ -64,7 +64,7 @@ class configureSAM(QgsProcessingAlgorithm):
                     import ctypes
                     is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
 
-                modules = ['segment-geospatial']
+                modules = ['segment-geospatial==0.5.0']
 
                 for module in modules:
                     try:
