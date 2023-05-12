@@ -155,7 +155,7 @@ class SAM_Pred(QgsProcessingAlgorithm):
             if field_check == -1:
                 label = 1
             else:
-                label = int(feature['id'])
+                label = feature['id']
                 if label not in [0,1]: #If label is not 0 (background) or 1 (foreground), then return 1
                     label = 1
 
