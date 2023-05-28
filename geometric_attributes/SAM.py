@@ -165,7 +165,7 @@ class SAM(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
 
-        if float(sys.version[:3]) <= 3.7:
+        if sys.version_info.minor < 8:
             feedback.reportError(QCoreApplication.translate('Warning',"Please install a newer version of QGIS as SAM requires python version 3.8=>"))
             return {}
 
